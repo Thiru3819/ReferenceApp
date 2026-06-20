@@ -1,0 +1,21 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /temple_members/{memberId} {
+      allow read, write: if true;
+    }
+
+    match /temple_queue_registrations/{queueNumber} {
+      allow read, write: if true;
+    }
+
+    match /temple_queue_notifications/{notificationId} {
+      allow read, write: if true;
+    }
+
+    match /temple_queue_state/{stateId} {
+      allow read, write: if true;
+    }
+  }
+}

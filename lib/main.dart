@@ -1,4 +1,13 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:math';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+
+import 'firebase_options.dart';
 
 void main() {
   runApp(const TempleQueueApp());
@@ -13,26 +22,47 @@ class TempleQueueApp extends StatefulWidget {
 
 class _TempleQueueAppState extends State<TempleQueueApp> {
   final TempleQueueStore store = TempleQueueStore();
+  late final Future<void> _initialization = store.initialize();
+
+  ThemeData _buildTheme(BuildContext context) {
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFF0F766E),
+        brightness: Brightness.light,
+      ),
+      scaffoldBackgroundColor: const Color(0xFFF4F7FB),
+      textTheme: Theme.of(context).textTheme.apply(
+        bodyColor: const Color(0xFF153047),
+        displayColor: const Color(0xFF153047),
+        fontFamily: 'Georgia',
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Temple Reference Queue',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF0F766E),
-          brightness: Brightness.light,
-        ),
-        scaffoldBackgroundColor: const Color(0xFFF4F7FB),
-        textTheme: Theme.of(context).textTheme.apply(
-              bodyColor: const Color(0xFF153047),
-              displayColor: const Color(0xFF153047),
-              fontFamily: 'Georgia',
+    final theme = _buildTheme(context);
+    return FutureBuilder<void>(
+      future: _initialization,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: theme,
+            home: const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
             ),
-      ),
-      home: TempleLandingPage(store: store),
+          );
+        }
+
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'Temple Reference Queue',
+          theme: theme,
+          home: TempleLandingPage(store: store),
+        );
+      },
     );
   }
 }
@@ -42,11 +72,94 @@ class TempleMember {
     required this.name,
     required this.username,
     required this.password,
+    this.smsPhone = '',
   });
 
   final String name;
   final String username;
   final String password;
+  final String smsPhone;
+}
+
+class TextbeeSmsResult {
+  const TextbeeSmsResult({
+    required this.sent,
+    required this.statusCode,
+    required this.message,
+  });
+
+  final bool sent;
+  final int? statusCode;
+  final String message;
+}
+
+class TextbeeSmsService {
+  TextbeeSmsService({http.Client? client}) : _client = client ?? http.Client();
+
+  static const String apiKey = String.fromEnvironment('TEXTBEE_API_KEY');
+  static const String deviceId = String.fromEnvironment('TEXTBEE_DEVICE_ID');
+
+  final http.Client _client;
+
+  bool get isConfigured => apiKey.isNotEmpty && deviceId.isNotEmpty;
+
+  Future<TextbeeSmsResult> sendSms({
+    required List<String> recipients,
+    required String message,
+  }) async {
+    final cleanRecipients = recipients
+        .map((recipient) => recipient.trim())
+        .where((recipient) => recipient.isNotEmpty)
+        .toList();
+
+    if (cleanRecipients.isEmpty) {
+      return const TextbeeSmsResult(
+        sent: false,
+        statusCode: null,
+        message: 'No SMS recipients configured.',
+      );
+    }
+
+    if (!isConfigured) {
+      return const TextbeeSmsResult(
+        sent: false,
+        statusCode: null,
+        message: 'Textbee API key or device id is missing.',
+      );
+    }
+
+    final uri = Uri.https(
+      'api.textbee.dev',
+      '/api/v1/gateway/devices/$deviceId/send-sms',
+    );
+
+    try {
+      final response = await _client.post(
+        uri,
+        headers: <String, String>{
+          'content-type': 'application/json',
+          'x-api-key': apiKey,
+        },
+        body: jsonEncode(<String, dynamic>{
+          'recipients': cleanRecipients,
+          'message': message,
+        }),
+      );
+
+      final sent = response.statusCode >= 200 && response.statusCode < 300;
+      return TextbeeSmsResult(
+        sent: sent,
+        statusCode: response.statusCode,
+        message: sent ? 'SMS sent.' : response.body,
+      );
+    } catch (error) {
+      return TextbeeSmsResult(
+        sent: false,
+        statusCode: null,
+        message: error.toString(),
+      );
+    }
+  }
 }
 
 class TempleNotification {
@@ -66,6 +179,7 @@ class TempleNotification {
 class RegistrationRecord {
   RegistrationRecord({
     required this.queueNumber,
+    required this.memoryCode,
     required this.name,
     required this.phone,
     required this.referenceMember,
@@ -76,6 +190,7 @@ class RegistrationRecord {
   }) : status = 'Waiting approval';
 
   final String queueNumber;
+  final String memoryCode;
   final String name;
   final String phone;
   final String referenceMember;
@@ -87,32 +202,118 @@ class RegistrationRecord {
 }
 
 class TempleQueueStore {
+  static const String templeOfficeSmsPhone = String.fromEnvironment(
+    'TEMPLE_OFFICE_SMS_PHONE',
+  );
+
   static const List<TempleMember> members = [
-    TempleMember(name: 'Arun', username: 'arun', password: 'arun@111'),
-    TempleMember(name: 'Bala', username: 'bala', password: 'bala@112'),
-    TempleMember(name: 'Chandra', username: 'chandra', password: 'chandra@113'),
-    TempleMember(name: 'Deepa', username: 'deepa', password: 'deepa@114'),
-    TempleMember(name: 'Eshwar', username: 'eshwar', password: 'eshwar@115'),
-    TempleMember(name: 'Farah', username: 'farah', password: 'farah@116'),
-    TempleMember(name: 'Gopi', username: 'gopi', password: 'gopi@117'),
-    TempleMember(name: 'Hema', username: 'hema', password: 'hema@118'),
-    TempleMember(name: 'Ibrahim', username: 'ibrahim', password: 'ibrahim@119'),
-    TempleMember(name: 'Jaya', username: 'jaya', password: 'jaya@120'),
-    TempleMember(name: 'Kiran', username: 'kiran', password: 'kiran@121'),
-    TempleMember(name: 'Lakshmi', username: 'lakshmi', password: 'lakshmi@122'),
+    TempleMember(
+      name: 'Arun',
+      username: 'arun',
+      password: 'arun@111',
+      smsPhone: String.fromEnvironment('TEMPLE_MEMBER_ARUN_PHONE'),
+    ),
+    TempleMember(
+      name: 'Bala',
+      username: 'bala',
+      password: 'bala@112',
+      smsPhone: String.fromEnvironment('TEMPLE_MEMBER_BALA_PHONE'),
+    ),
+    TempleMember(
+      name: 'Chandra',
+      username: 'chandra',
+      password: 'chandra@113',
+      smsPhone: String.fromEnvironment('TEMPLE_MEMBER_CHANDRA_PHONE'),
+    ),
+    TempleMember(
+      name: 'Deepa',
+      username: 'deepa',
+      password: 'deepa@114',
+      smsPhone: String.fromEnvironment('TEMPLE_MEMBER_DEEPA_PHONE'),
+    ),
+    TempleMember(
+      name: 'Eshwar',
+      username: 'eshwar',
+      password: 'eshwar@115',
+      smsPhone: String.fromEnvironment('TEMPLE_MEMBER_ESHWAR_PHONE'),
+    ),
+    TempleMember(
+      name: 'Farah',
+      username: 'farah',
+      password: 'farah@116',
+      smsPhone: String.fromEnvironment('TEMPLE_MEMBER_FARAH_PHONE'),
+    ),
+    TempleMember(
+      name: 'Gopi',
+      username: 'gopi',
+      password: 'gopi@117',
+      smsPhone: String.fromEnvironment('TEMPLE_MEMBER_GOPI_PHONE'),
+    ),
+    TempleMember(
+      name: 'Hema',
+      username: 'hema',
+      password: 'hema@118',
+      smsPhone: String.fromEnvironment('TEMPLE_MEMBER_HEMA_PHONE'),
+    ),
+    TempleMember(
+      name: 'Ibrahim',
+      username: 'ibrahim',
+      password: 'ibrahim@119',
+      smsPhone: String.fromEnvironment('TEMPLE_MEMBER_IBRAHIM_PHONE'),
+    ),
+    TempleMember(
+      name: 'Jaya',
+      username: 'jaya',
+      password: 'jaya@120',
+      smsPhone: String.fromEnvironment('TEMPLE_MEMBER_JAYA_PHONE'),
+    ),
+    TempleMember(
+      name: 'Kiran',
+      username: 'kiran',
+      password: 'kiran@121',
+      smsPhone: String.fromEnvironment('TEMPLE_MEMBER_KIRAN_PHONE'),
+    ),
+    TempleMember(
+      name: 'Lakshmi',
+      username: 'lakshmi',
+      password: 'lakshmi@122',
+      smsPhone: String.fromEnvironment('TEMPLE_MEMBER_LAKSHMI_PHONE'),
+    ),
   ];
 
   final List<RegistrationRecord> registrations = [];
   final List<TempleNotification> notifications = [];
+  final TextbeeSmsService _smsService = TextbeeSmsService();
+  final Random _random = Random.secure();
   int nextQueueNumber = 1;
+  bool _firebaseEnabled = false;
 
-  RegistrationRecord registerVisitor({
+  bool get isFirebaseEnabled => _firebaseEnabled;
+
+  Future<void> initialize() async {
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      ).timeout(const Duration(seconds: 10));
+      _firebaseEnabled = true;
+    } catch (error) {
+      debugPrint('Firebase initialization failed: $error');
+      _firebaseEnabled = false;
+      return;
+    }
+
+    await _runFirebaseTask(_seedTempleMembers);
+    await _runFirebaseTask(_loadFromFirebase);
+  }
+
+  Future<RegistrationRecord> registerVisitor({
     required String name,
     required String phone,
     required String referenceMember,
     required int ticketCount,
-  }) {
+  }) async {
     final queueNumber = 'Q-${nextQueueNumber.toString().padLeft(3, '0')}';
+    final memoryCode = _generateMemoryCode();
     final groupSize = ticketCount * 2;
     final entryIds = List<String>.generate(
       groupSize,
@@ -121,6 +322,7 @@ class TempleQueueStore {
 
     final registration = RegistrationRecord(
       queueNumber: queueNumber,
+      memoryCode: memoryCode,
       name: name,
       phone: phone,
       referenceMember: referenceMember,
@@ -131,39 +333,226 @@ class TempleQueueStore {
     );
 
     registrations.insert(0, registration);
-    notifications.insert(
-      0,
-      TempleNotification(
-        title: 'Temple office alert',
-        message: '$name completed registration with queue $queueNumber.',
-        memberName: 'Temple Office',
-        createdAt: registration.createdAt,
-      ),
+    final userNotification = TempleNotification(
+      title: 'New visitor registered',
+      message:
+          '$name booked $ticketCount ticket(s) for $groupSize member(s). Queue $queueNumber and memory code $memoryCode are waiting for entry.',
+      memberName: referenceMember,
+      createdAt: registration.createdAt,
     );
-    notifications.insert(
-      0,
-      TempleNotification(
-        title: 'New visitor registered',
-        message: '$name booked $ticketCount ticket(s) for $groupSize member(s). Queue $queueNumber is waiting for entry.',
-        memberName: referenceMember,
-        createdAt: registration.createdAt,
-      ),
+    final officeNotification = TempleNotification(
+      title: 'Temple office alert',
+      message:
+          '$name completed registration with queue $queueNumber and memory code $memoryCode.',
+      memberName: 'Temple Office',
+      createdAt: registration.createdAt,
     );
+
+    notifications.insert(0, officeNotification);
+    notifications.insert(0, userNotification);
     nextQueueNumber++;
+    await _saveRegistration(registration);
+    await _saveNotification(userNotification);
+    await _saveNotification(officeNotification);
+    await _saveQueueState();
     return registration;
   }
 
   TempleMember? authenticateMember(String username, String password) {
     final normalizedUsername = username.trim().toLowerCase();
     return members.firstWhereOrNull(
-      (member) => member.username.toLowerCase() == normalizedUsername && member.password == password,
+      (member) =>
+          member.username.toLowerCase() == normalizedUsername &&
+          member.password == password,
     );
   }
 
-  RegistrationRecord? findRegistrationByLogin(String phone, String queueNumber) {
-    final normalizedQueue = queueNumber.trim().toUpperCase();
+  RegistrationRecord? findRegistrationByLogin(
+    String phone,
+    String queueOrCode,
+  ) {
+    final normalizedIdentifier = queueOrCode.trim().toUpperCase();
     return registrations.firstWhereOrNull(
-      (record) => record.phone == phone.trim() && record.queueNumber.toUpperCase() == normalizedQueue,
+      (record) =>
+          record.phone == phone.trim() &&
+          (record.queueNumber.toUpperCase() == normalizedIdentifier ||
+              record.memoryCode.toUpperCase() == normalizedIdentifier),
+    );
+  }
+
+  Future<void> updateRegistrationStatus(
+    RegistrationRecord record,
+    String status,
+  ) async {
+    record.status = status;
+    if (!_firebaseEnabled) {
+      return;
+    }
+
+    await _registrationsCollection.doc(record.queueNumber).update(
+      <String, dynamic>{'status': status},
+    );
+  }
+
+  Future<void> _loadFromFirebase() async {
+    if (!_firebaseEnabled) {
+      return;
+    }
+
+    final stateSnapshot = await _stateDocument.get();
+    if (stateSnapshot.exists) {
+      final data = stateSnapshot.data();
+      nextQueueNumber = (data?['nextQueueNumber'] as int?) ?? 1;
+    }
+
+    final registrationsSnapshot = await _registrationsCollection.get();
+    final loadedRegistrations =
+        registrationsSnapshot.docs
+            .map((doc) => _registrationFromMap(doc.data()))
+            .toList()
+          ..sort((left, right) => right.createdAt.compareTo(left.createdAt));
+
+    final notificationsSnapshot = await _notificationsCollection.get();
+    final loadedNotifications =
+        notificationsSnapshot.docs
+            .map((doc) => _notificationFromMap(doc.data()))
+            .toList()
+          ..sort((left, right) => right.createdAt.compareTo(left.createdAt));
+
+    registrations
+      ..clear()
+      ..addAll(loadedRegistrations);
+    notifications
+      ..clear()
+      ..addAll(loadedNotifications);
+  }
+
+  Future<void> _saveRegistration(RegistrationRecord registration) async {
+    if (!_firebaseEnabled) {
+      return;
+    }
+
+    await _registrationsCollection
+        .doc(registration.queueNumber)
+        .set(_registrationToMap(registration));
+  }
+
+  Future<void> _seedTempleMembers() async {
+    if (!_firebaseEnabled) {
+      return;
+    }
+
+    final batch = FirebaseFirestore.instance.batch();
+    final createdAt = DateTime.now().toIso8601String();
+    for (final member in members) {
+      batch.set(_membersCollection.doc(member.username), <String, dynamic>{
+        'name': member.name,
+        'username': member.username,
+        'password': member.password,
+        'status': 'Active',
+        'role': 'Temple member',
+        'createdAt': createdAt,
+      }, SetOptions(merge: true));
+    }
+    await batch.commit();
+  }
+
+  Future<void> _saveNotification(TempleNotification notification) async {
+    if (!_firebaseEnabled) {
+      return;
+    }
+
+    await _notificationsCollection.add(_notificationToMap(notification));
+  }
+
+  Future<void> _saveQueueState() async {
+    if (!_firebaseEnabled) {
+      return;
+    }
+
+    await _stateDocument.set(<String, dynamic>{
+      'nextQueueNumber': nextQueueNumber,
+      'updatedAt': DateTime.now().toIso8601String(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> _runFirebaseTask(Future<void> Function() task) async {
+    try {
+      await task();
+    } catch (error) {
+      debugPrint('Firebase task failed: $error');
+    }
+  }
+
+  CollectionReference<Map<String, dynamic>> get _registrationsCollection =>
+      FirebaseFirestore.instance.collection('temple_queue_registrations');
+
+  CollectionReference<Map<String, dynamic>> get _notificationsCollection =>
+      FirebaseFirestore.instance.collection('temple_queue_notifications');
+
+  CollectionReference<Map<String, dynamic>> get _membersCollection =>
+      FirebaseFirestore.instance.collection('temple_members');
+
+  DocumentReference<Map<String, dynamic>> get _stateDocument =>
+      FirebaseFirestore.instance
+          .collection('temple_queue_state')
+          .doc('current');
+
+  String _generateMemoryCode() {
+    String code;
+    do {
+      code = (_random.nextInt(9000) + 1000).toString();
+    } while (registrations.any((record) => record.memoryCode == code));
+    return code;
+  }
+
+  Map<String, dynamic> _registrationToMap(RegistrationRecord record) {
+    return <String, dynamic>{
+      'queueNumber': record.queueNumber,
+      'memoryCode': record.memoryCode,
+      'name': record.name,
+      'phone': record.phone,
+      'referenceMember': record.referenceMember,
+      'ticketCount': record.ticketCount,
+      'groupSize': record.groupSize,
+      'entryIds': record.entryIds,
+      'createdAt': record.createdAt.toIso8601String(),
+      'status': record.status,
+      'type': 'Visitor',
+    };
+  }
+
+  Map<String, dynamic> _notificationToMap(TempleNotification notification) {
+    return <String, dynamic>{
+      'title': notification.title,
+      'message': notification.message,
+      'memberName': notification.memberName,
+      'createdAt': notification.createdAt.toIso8601String(),
+    };
+  }
+
+  RegistrationRecord _registrationFromMap(Map<String, dynamic> data) {
+    return RegistrationRecord(
+      queueNumber: data['queueNumber'] as String,
+      memoryCode: (data['memoryCode'] as String?) ?? _generateMemoryCode(),
+      name: data['name'] as String,
+      phone: data['phone'] as String,
+      referenceMember: data['referenceMember'] as String,
+      ticketCount: (data['ticketCount'] as num).toInt(),
+      groupSize: (data['groupSize'] as num).toInt(),
+      entryIds: (data['entryIds'] as List<dynamic>)
+          .map((value) => value.toString())
+          .toList(),
+      createdAt: DateTime.parse(data['createdAt'] as String),
+    )..status = (data['status'] as String?) ?? 'Waiting approval';
+  }
+
+  TempleNotification _notificationFromMap(Map<String, dynamic> data) {
+    return TempleNotification(
+      title: data['title'] as String,
+      message: data['message'] as String,
+      memberName: data['memberName'] as String,
+      createdAt: DateTime.parse(data['createdAt'] as String),
     );
   }
 }
@@ -193,10 +582,12 @@ class TempleLandingPage extends StatelessWidget {
                 children: [
                   _HeroBanner(
                     title: 'Temple Reference Queue',
-                    subtitle: 'Use separate pages for visitor registration, user profile access, and temple member login.',
+                    subtitle:
+                        'Use separate pages for visitor registration, user profile access, and temple member login.',
                     totalRegistrations: store.registrations.length,
                     totalNotifications: store.notifications.length,
-                    nextQueueNumber: 'Q-${store.nextQueueNumber.toString().padLeft(3, '0')}',
+                    nextQueueNumber:
+                        'Q-${store.nextQueueNumber.toString().padLeft(3, '0')}',
                   ),
                   const SizedBox(height: 16),
                   _SectionCard(
@@ -212,7 +603,8 @@ class TempleLandingPage extends StatelessWidget {
                           onTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (_) => UserRegistrationPage(store: store),
+                                builder: (_) =>
+                                    UserRegistrationPage(store: store),
                               ),
                             );
                           },
@@ -235,7 +627,8 @@ class TempleLandingPage extends StatelessWidget {
                         _NavigationTile(
                           key: const ValueKey('nav_temple_members'),
                           title: 'Temple Members',
-                          message: 'Login with username and password to manage registrations.',
+                          message:
+                              'Login with username and password to manage registrations.',
                           icon: Icons.badge_outlined,
                           onTap: () {
                             Navigator.of(context).push(
@@ -290,7 +683,8 @@ class _UserRegistrationPageState extends State<UserRegistrationPage> {
         children: [
           _SectionCard(
             title: 'Register visitor',
-            subtitle: 'Create a queue number before opening the user profile page.',
+            subtitle:
+                'Create a queue number before opening the user profile page.',
             child: Form(
               key: _formKey,
               child: Column(
@@ -303,7 +697,9 @@ class _UserRegistrationPageState extends State<UserRegistrationPage> {
                       labelText: 'Full name',
                       prefixIcon: Icon(Icons.person_outline),
                     ),
-                    validator: (value) => value == null || value.trim().isEmpty ? 'Enter the visitor name' : null,
+                    validator: (value) => value == null || value.trim().isEmpty
+                        ? 'Enter the visitor name'
+                        : null,
                   ),
                   const SizedBox(height: 14),
                   TextFormField(
@@ -314,12 +710,15 @@ class _UserRegistrationPageState extends State<UserRegistrationPage> {
                       labelText: 'Mobile number',
                       prefixIcon: Icon(Icons.phone_outlined),
                     ),
-                    validator: (value) => value == null || value.trim().length < 8 ? 'Enter a valid phone number' : null,
+                    validator: (value) =>
+                        value == null || value.trim().length < 8
+                        ? 'Enter a valid phone number'
+                        : null,
                   ),
                   const SizedBox(height: 14),
                   DropdownButtonFormField<String>(
                     key: const ValueKey('registration_reference'),
-                    value: _selectedReferenceMember,
+                    initialValue: _selectedReferenceMember,
                     decoration: const InputDecoration(
                       labelText: 'Reference member',
                       prefixIcon: Icon(Icons.group_outlined),
@@ -347,14 +746,16 @@ class _UserRegistrationPageState extends State<UserRegistrationPage> {
                     value: _ticketCount.toString(),
                     hint: '1 ticket = 2 users',
                     onAdd: () => setState(() => _ticketCount++),
-                    onRemove: _ticketCount > 1 ? () => setState(() => _ticketCount--) : null,
+                    onRemove: _ticketCount > 1
+                        ? () => setState(() => _ticketCount--)
+                        : null,
                     addKey: const ValueKey('ticket_add'),
                     removeKey: const ValueKey('ticket_remove'),
                   ),
                   const SizedBox(height: 18),
                   FilledButton.icon(
                     key: const ValueKey('register_submit'),
-                    onPressed: _submitRegistration,
+                    onPressed: () => _submitRegistration(),
                     icon: const Icon(Icons.badge_outlined),
                     label: const Text('Generate queue ID'),
                   ),
@@ -367,21 +768,29 @@ class _UserRegistrationPageState extends State<UserRegistrationPage> {
     );
   }
 
-  void _submitRegistration() {
+  Future<void> _submitRegistration() async {
     final isValid = _formKey.currentState?.validate() ?? false;
     if (!isValid) {
       return;
     }
 
-    final registration = widget.store.registerVisitor(
+    final registration = await widget.store.registerVisitor(
       name: _nameController.text.trim(),
       phone: _phoneController.text.trim(),
       referenceMember: _selectedReferenceMember,
       ticketCount: _ticketCount,
     );
 
+    if (!mounted) {
+      return;
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Queue ${registration.queueNumber} generated for ${registration.name}')),
+      SnackBar(
+        content: Text(
+          'Queue ${registration.queueNumber} generated for ${registration.name}',
+        ),
+      ),
     );
 
     Navigator.of(context).pushReplacement(
@@ -396,7 +805,11 @@ class _UserRegistrationPageState extends State<UserRegistrationPage> {
 }
 
 class UserProfilePage extends StatefulWidget {
-  const UserProfilePage({super.key, required this.store, this.initialRegistration});
+  const UserProfilePage({
+    super.key,
+    required this.store,
+    this.initialRegistration,
+  });
 
   final TempleQueueStore store;
   final RegistrationRecord? initialRegistration;
@@ -437,11 +850,15 @@ class _UserProfilePageState extends State<UserProfilePage> {
         padding: const EdgeInsets.all(20),
         children: [
           _SectionCard(
-            title: activeUser == null ? 'Open your profile' : 'Your temple pass',
+            title: activeUser == null
+                ? 'Open your profile'
+                : 'Your temple pass',
             subtitle: activeUser == null
-                ? 'Use the phone number and queue number you received after registration.'
-                : 'Your ticket set is ready. Show the queue number at the gate.',
-            child: activeUser == null ? _buildLoginForm() : _buildProfile(activeUser),
+                ? 'Use the phone number with your queue number or memory code.'
+                : 'Your ticket set is ready. Show the queue number or memory code at the gate.',
+            child: activeUser == null
+                ? _buildLoginForm()
+                : _buildProfile(activeUser),
           ),
         ],
       ),
@@ -462,21 +879,25 @@ class _UserProfilePageState extends State<UserProfilePage> {
               labelText: 'Registered phone number',
               prefixIcon: Icon(Icons.phone_android_outlined),
             ),
-            validator: (value) => value == null || value.trim().isEmpty ? 'Enter the phone number' : null,
+            validator: (value) => value == null || value.trim().isEmpty
+                ? 'Enter the phone number'
+                : null,
           ),
           const SizedBox(height: 14),
           TextFormField(
             key: const ValueKey('profile_queue'),
             controller: _profileQueueController,
             decoration: const InputDecoration(
-              labelText: 'Queue number',
+              labelText: 'Queue number or memory code',
               prefixIcon: Icon(Icons.confirmation_number_outlined),
             ),
-            validator: (value) => value == null || value.trim().isEmpty ? 'Enter the queue number' : null,
+            validator: (value) => value == null || value.trim().isEmpty
+                ? 'Enter the queue number or memory code'
+                : null,
           ),
           const SizedBox(height: 14),
           FilledButton(
-            onPressed: _openProfile,
+            onPressed: () => _openProfile(),
             child: const Text('Open my profile'),
           ),
           const SizedBox(height: 12),
@@ -505,6 +926,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
           runSpacing: 12,
           children: [
             _InfoChip(label: 'Queue number', value: record.queueNumber),
+            _InfoChip(label: 'Memory code', value: record.memoryCode),
             _InfoChip(label: 'Name', value: record.name),
             _InfoChip(label: 'Tickets', value: record.ticketCount.toString()),
             _InfoChip(label: 'Members', value: record.groupSize.toString()),
@@ -514,7 +936,9 @@ class _UserProfilePageState extends State<UserProfilePage> {
         const SizedBox(height: 18),
         Text(
           'Entry IDs for the whole group',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 10),
         Wrap(
@@ -592,9 +1016,15 @@ class _TempleMemberPageState extends State<TempleMemberPage> {
   @override
   Widget build(BuildContext context) {
     final loggedInMember = _loggedInMember;
-    final admittedCount = widget.store.registrations.where((record) => record.status == 'Admitted').length;
-    final waitingCount = widget.store.registrations.where((record) => record.status == 'Waiting approval').length;
-    final rejectedCount = widget.store.registrations.where((record) => record.status == 'Rejected').length;
+    final admittedCount = widget.store.registrations
+        .where((record) => record.status == 'Admitted')
+        .length;
+    final waitingCount = widget.store.registrations
+        .where((record) => record.status == 'Waiting approval')
+        .length;
+    final rejectedCount = widget.store.registrations
+        .where((record) => record.status == 'Rejected')
+        .length;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Temple Members')),
@@ -606,16 +1036,25 @@ class _TempleMemberPageState extends State<TempleMemberPage> {
             subtitle: loggedInMember == null
                 ? 'Log in with your username and password to manage registrations.'
                 : 'Signed in as ${loggedInMember.name}.',
-            child: loggedInMember == null ? _buildLoginForm() : _buildDashboard(loggedInMember, admittedCount, waitingCount, rejectedCount),
+            child: loggedInMember == null
+                ? _buildLoginForm()
+                : _buildDashboard(
+                    loggedInMember,
+                    admittedCount,
+                    waitingCount,
+                    rejectedCount,
+                  ),
           ),
           const SizedBox(height: 16),
           _SectionCard(
             title: 'Registered users',
-            subtitle: 'Temple staff can review every registered visitor and their queue status.',
+            subtitle:
+                'Temple staff can review every registered visitor and their queue status.',
             child: widget.store.registrations.isEmpty
                 ? const _EmptyState(
                     title: 'No registered users yet',
-                    message: 'New registrations will appear here automatically.',
+                    message:
+                        'New registrations will appear here automatically.',
                     icon: Icons.people_alt_outlined,
                   )
                 : Column(
@@ -625,16 +1064,9 @@ class _TempleMemberPageState extends State<TempleMemberPage> {
                             padding: const EdgeInsets.only(bottom: 12),
                             child: _RegistrationTile(
                               record: record,
-                              onMarkEntered: () {
-                                setState(() {
-                                  record.status = 'Admitted';
-                                });
-                              },
-                              onReject: () {
-                                setState(() {
-                                  record.status = 'Rejected';
-                                });
-                              },
+                              onMarkEntered: () =>
+                                  _updateStatus(record, 'Admitted'),
+                              onReject: () => _updateStatus(record, 'Rejected'),
                             ),
                           ),
                         )
@@ -643,21 +1075,32 @@ class _TempleMemberPageState extends State<TempleMemberPage> {
           ),
           const SizedBox(height: 16),
           _SectionCard(
-            title: loggedInMember == null ? 'Temple inbox' : '${loggedInMember.name} notifications',
-            subtitle: 'Each registration sends a notification to the selected reference member.',
+            title: loggedInMember == null
+                ? 'Temple inbox'
+                : '${loggedInMember.name} notifications',
+            subtitle:
+                'Each registration sends a notification to the selected reference member.',
             child: widget.store.notifications.isEmpty
                 ? const _EmptyState(
                     title: 'No notifications yet',
-                    message: 'As soon as visitors register, alerts will appear here.',
+                    message:
+                        'As soon as visitors register, alerts will appear here.',
                     icon: Icons.notifications_none_outlined,
                   )
                 : Column(
                     children: widget.store.notifications
-                        .where((notification) => loggedInMember == null || notification.memberName == loggedInMember.name || notification.memberName == 'Temple Office')
+                        .where(
+                          (notification) =>
+                              loggedInMember == null ||
+                              notification.memberName == loggedInMember.name ||
+                              notification.memberName == 'Temple Office',
+                        )
                         .map<Widget>(
                           (notification) => Padding(
                             padding: const EdgeInsets.only(bottom: 12),
-                            child: _NotificationTile(notification: notification),
+                            child: _NotificationTile(
+                              notification: notification,
+                            ),
                           ),
                         )
                         .toList(),
@@ -681,7 +1124,9 @@ class _TempleMemberPageState extends State<TempleMemberPage> {
               labelText: 'Username',
               prefixIcon: Icon(Icons.person_outline),
             ),
-            validator: (value) => value == null || value.trim().isEmpty ? 'Enter the username' : null,
+            validator: (value) => value == null || value.trim().isEmpty
+                ? 'Enter the username'
+                : null,
           ),
           const SizedBox(height: 14),
           TextFormField(
@@ -692,11 +1137,13 @@ class _TempleMemberPageState extends State<TempleMemberPage> {
               labelText: 'Password',
               prefixIcon: Icon(Icons.lock_outline),
             ),
-            validator: (value) => value == null || value.trim().isEmpty ? 'Enter the password' : null,
+            validator: (value) => value == null || value.trim().isEmpty
+                ? 'Enter the password'
+                : null,
           ),
           const SizedBox(height: 14),
           FilledButton(
-            onPressed: _login,
+            onPressed: () => _login(),
             child: const Text('Login to temple dashboard'),
           ),
         ],
@@ -704,7 +1151,12 @@ class _TempleMemberPageState extends State<TempleMemberPage> {
     );
   }
 
-  Widget _buildDashboard(TempleMember member, int admittedCount, int waitingCount, int rejectedCount) {
+  Widget _buildDashboard(
+    TempleMember member,
+    int admittedCount,
+    int waitingCount,
+    int rejectedCount,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -713,7 +1165,13 @@ class _TempleMemberPageState extends State<TempleMemberPage> {
           runSpacing: 12,
           children: [
             _InfoChip(label: 'Member', value: member.name),
-            _InfoChip(label: 'Alerts', value: widget.store.notifications.where((item) => item.memberName == member.name).length.toString()),
+            _InfoChip(
+              label: 'Alerts',
+              value: widget.store.notifications
+                  .where((item) => item.memberName == member.name)
+                  .length
+                  .toString(),
+            ),
             _InfoChip(label: 'Admitted', value: admittedCount.toString()),
           ],
         ),
@@ -735,6 +1193,13 @@ class _TempleMemberPageState extends State<TempleMemberPage> {
         ),
       ],
     );
+  }
+
+  Future<void> _updateStatus(RegistrationRecord record, String status) async {
+    await widget.store.updateRegistrationStatus(record, status);
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   void _login() {
@@ -802,25 +1267,37 @@ class _HeroBanner extends StatelessWidget {
           Text(
             title,
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                ),
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
             subtitle,
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.9),
-                ),
+              color: Colors.white.withValues(alpha: 0.9),
+            ),
           ),
           const SizedBox(height: 18),
           Wrap(
             spacing: 12,
             runSpacing: 12,
             children: [
-              _MiniStat(label: 'Registrations', value: totalRegistrations.toString(), icon: Icons.event_note_outlined),
-              _MiniStat(label: 'Notifications', value: totalNotifications.toString(), icon: Icons.notifications_outlined),
-              _MiniStat(label: 'Next queue', value: nextQueueNumber, icon: Icons.numbers_outlined),
+              _MiniStat(
+                label: 'Registrations',
+                value: totalRegistrations.toString(),
+                icon: Icons.event_note_outlined,
+              ),
+              _MiniStat(
+                label: 'Notifications',
+                value: totalNotifications.toString(),
+                icon: Icons.notifications_outlined,
+              ),
+              _MiniStat(
+                label: 'Next queue',
+                value: nextQueueNumber,
+                icon: Icons.numbers_outlined,
+              ),
             ],
           ),
         ],
@@ -830,7 +1307,11 @@ class _HeroBanner extends StatelessWidget {
 }
 
 class _MiniStat extends StatelessWidget {
-  const _MiniStat({required this.label, required this.value, required this.icon});
+  const _MiniStat({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
 
   final String label;
   final String value;
@@ -854,9 +1335,19 @@ class _MiniStat extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                Text(
+                  label,
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                ),
                 const SizedBox(height: 2),
-                Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 17)),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 17,
+                  ),
+                ),
               ],
             ),
           ),
@@ -894,13 +1385,33 @@ class _DashboardChart extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Queue status chart', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+          Text(
+            'Queue status chart',
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          ),
           const SizedBox(height: 14),
-          _ChartRow(label: 'Admitted', value: admitted, ratio: admittedValue, color: const Color(0xFF0F766E)),
+          _ChartRow(
+            label: 'Admitted',
+            value: admitted,
+            ratio: admittedValue,
+            color: const Color(0xFF0F766E),
+          ),
           const SizedBox(height: 10),
-          _ChartRow(label: 'Waiting', value: waiting, ratio: waitingValue, color: const Color(0xFFF59E0B)),
+          _ChartRow(
+            label: 'Waiting',
+            value: waiting,
+            ratio: waitingValue,
+            color: const Color(0xFFF59E0B),
+          ),
           const SizedBox(height: 10),
-          _ChartRow(label: 'Rejected', value: rejected, ratio: rejectedValue, color: const Color(0xFFEF4444)),
+          _ChartRow(
+            label: 'Rejected',
+            value: rejected,
+            ratio: rejectedValue,
+            color: const Color(0xFFEF4444),
+          ),
         ],
       ),
     );
@@ -937,14 +1448,21 @@ class _ChartRow extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 10),
-        SizedBox(width: 24, child: Text(value.toString(), textAlign: TextAlign.end)),
+        SizedBox(
+          width: 24,
+          child: Text(value.toString(), textAlign: TextAlign.end),
+        ),
       ],
     );
   }
 }
 
 class _SectionCard extends StatelessWidget {
-  const _SectionCard({required this.title, required this.subtitle, required this.child});
+  const _SectionCard({
+    required this.title,
+    required this.subtitle,
+    required this.child,
+  });
 
   final String title;
   final String subtitle;
@@ -968,9 +1486,19 @@ class _SectionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+          Text(
+            title,
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+          ),
           const SizedBox(height: 6),
-          Text(subtitle, style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: const Color(0xFF587086))),
+          Text(
+            subtitle,
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: const Color(0xFF587086)),
+          ),
           const SizedBox(height: 16),
           child,
         ],
@@ -1023,7 +1551,12 @@ class _NavigationTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                     const SizedBox(height: 4),
                     Text(message),
                   ],
@@ -1057,9 +1590,19 @@ class _InfoChip extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label, style: Theme.of(context).textTheme.labelMedium?.copyWith(color: const Color(0xFF5E7483))),
+          Text(
+            label,
+            style: Theme.of(
+              context,
+            ).textTheme.labelMedium?.copyWith(color: const Color(0xFF5E7483)),
+          ),
           const SizedBox(height: 4),
-          Text(value, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+          Text(
+            value,
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          ),
         ],
       ),
     );
@@ -1102,13 +1645,31 @@ class _StepperCard extends StatelessWidget {
               children: [
                 Text(label, style: Theme.of(context).textTheme.labelLarge),
                 const SizedBox(height: 4),
-                Text(hint, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: const Color(0xFF64748B))),
+                Text(
+                  hint,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFF64748B),
+                  ),
+                ),
               ],
             ),
           ),
-          IconButton(key: removeKey, onPressed: onRemove, icon: const Icon(Icons.remove_circle_outline)),
-          Text(value, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
-          IconButton(key: addKey, onPressed: onAdd, icon: const Icon(Icons.add_circle_outline)),
+          IconButton(
+            key: removeKey,
+            onPressed: onRemove,
+            icon: const Icon(Icons.remove_circle_outline),
+          ),
+          Text(
+            value,
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          IconButton(
+            key: addKey,
+            onPressed: onAdd,
+            icon: const Icon(Icons.add_circle_outline),
+          ),
         ],
       ),
     );
@@ -1136,15 +1697,30 @@ class _NotificationTile extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(notification.title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+                child: Text(
+                  notification.title,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
-              Text(notification.memberName, style: Theme.of(context).textTheme.labelMedium?.copyWith(color: const Color(0xFF0F766E))),
+              Text(
+                notification.memberName,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: const Color(0xFF0F766E),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
           Text(notification.message),
           const SizedBox(height: 8),
-          Text(_formatTime(notification.createdAt), style: Theme.of(context).textTheme.bodySmall?.copyWith(color: const Color(0xFF64748B))),
+          Text(
+            _formatTime(notification.createdAt),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: const Color(0xFF64748B)),
+          ),
         ],
       ),
     );
@@ -1183,20 +1759,31 @@ class _RegistrationTile extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(record.name, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+                child: Text(
+                  record.name,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
               Chip(label: Text(record.status)),
             ],
           ),
           const SizedBox(height: 8),
-          Text('${record.queueNumber} • ${record.phone}'),
+          Text(
+            '${record.queueNumber} - ${record.phone} - Memory ${record.memoryCode}',
+          ),
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
               _ChipLabel(label: 'Reference', value: record.referenceMember),
-              _ChipLabel(label: 'Tickets', value: record.ticketCount.toString()),
+              _ChipLabel(label: 'Memory code', value: record.memoryCode),
+              _ChipLabel(
+                label: 'Tickets',
+                value: record.ticketCount.toString(),
+              ),
               _ChipLabel(label: 'Members', value: record.groupSize.toString()),
             ],
           ),
@@ -1204,7 +1791,9 @@ class _RegistrationTile extends StatelessWidget {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: record.entryIds.map((entryId) => Chip(label: Text(entryId))).toList(),
+            children: record.entryIds
+                .map((entryId) => Chip(label: Text(entryId)))
+                .toList(),
           ),
           const SizedBox(height: 12),
           Wrap(
@@ -1245,7 +1834,11 @@ class _ChipLabel extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.title, required this.message, required this.icon});
+  const _EmptyState({
+    required this.title,
+    required this.message,
+    required this.icon,
+  });
 
   final String title;
   final String message;
@@ -1265,7 +1858,12 @@ class _EmptyState extends StatelessWidget {
         children: [
           Icon(icon, size: 38, color: const Color(0xFF0F766E)),
           const SizedBox(height: 10),
-          Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+          Text(
+            title,
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          ),
           const SizedBox(height: 4),
           Text(message, textAlign: TextAlign.center),
         ],
