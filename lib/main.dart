@@ -24,6 +24,12 @@ class _TempleQueueAppState extends State<TempleQueueApp> {
   final TempleQueueStore store = TempleQueueStore();
   late final Future<void> _initialization = store.initialize();
 
+  @override
+  void dispose() {
+    store.dispose();
+    super.dispose();
+  }
+
   ThemeData _buildTheme(BuildContext context) {
     return ThemeData(
       useMaterial3: true,
@@ -287,6 +293,8 @@ class TempleQueueStore {
   final Random _random = Random.secure();
   int nextQueueNumber = 1;
   bool _firebaseEnabled = false;
+  StreamSubscription? _registrationsSubscription;
+  StreamSubscription? _notificationsSubscription;
 
   bool get isFirebaseEnabled => _firebaseEnabled;
 
@@ -304,6 +312,54 @@ class TempleQueueStore {
 
     await _runFirebaseTask(_seedTempleMembers);
     await _runFirebaseTask(_loadFromFirebase);
+    _setupFirebaseListeners();
+  }
+
+  void _setupFirebaseListeners() {
+    if (!_firebaseEnabled) {
+      return;
+    }
+
+    _registrationsSubscription = _registrationsCollection.snapshots().listen(
+      (snapshot) {
+        final loadedRegistrations = snapshot.docs
+            .map((doc) => _registrationFromMap(doc.data()))
+            .toList()
+          ..sort((left, right) => right.createdAt.compareTo(left.createdAt));
+
+        if (loadedRegistrations.isNotEmpty &&
+            (registrations.isEmpty ||
+             loadedRegistrations.first.createdAt.isAfter(registrations.first.createdAt))) {
+          registrations.clear();
+          registrations.addAll(loadedRegistrations);
+          debugPrint('New registration detected from Firebase');
+        }
+      },
+      onError: (error) => debugPrint('Error listening to registrations: $error'),
+    );
+
+    _notificationsSubscription = _notificationsCollection.snapshots().listen(
+      (snapshot) {
+        final loadedNotifications = snapshot.docs
+            .map((doc) => _notificationFromMap(doc.data()))
+            .toList()
+          ..sort((left, right) => right.createdAt.compareTo(left.createdAt));
+
+        if (loadedNotifications.isNotEmpty &&
+            (notifications.isEmpty ||
+             loadedNotifications.first.createdAt.isAfter(notifications.first.createdAt))) {
+          notifications.clear();
+          notifications.addAll(loadedNotifications);
+          debugPrint('New notification detected from Firebase');
+        }
+      },
+      onError: (error) => debugPrint('Error listening to notifications: $error'),
+    );
+  }
+
+  void dispose() {
+    _registrationsSubscription?.cancel();
+    _notificationsSubscription?.cancel();
   }
 
   Future<RegistrationRecord> registerVisitor({
@@ -355,6 +411,7 @@ class TempleQueueStore {
     await _saveNotification(userNotification);
     await _saveNotification(officeNotification);
     await _saveQueueState();
+    await _sendRegistrationSms(registration);
     return registration;
   }
 
@@ -481,6 +538,32 @@ class TempleQueueStore {
       await task();
     } catch (error) {
       debugPrint('Firebase task failed: $error');
+    }
+  }
+
+  Future<void> _sendRegistrationSms(RegistrationRecord registration) async {
+    final referenceMember = members.firstWhereOrNull(
+      (member) => member.name == registration.referenceMember,
+    );
+    if (referenceMember == null || referenceMember.smsPhone.isEmpty) {
+      debugPrint(
+        'No SMS phone configured for reference member ${registration.referenceMember}',
+      );
+      return;
+    }
+
+    final message =
+        'New visitor registered: ${registration.name} booked ${registration.ticketCount} ticket(s) for ${registration.groupSize} member(s). Queue ${registration.queueNumber}, memory code ${registration.memoryCode}.';
+
+    final result = await _smsService.sendSms(
+      recipients: [referenceMember.smsPhone],
+      message: message,
+    );
+
+    if (result.sent) {
+      debugPrint('SMS sent to ${registration.referenceMember}');
+    } else {
+      debugPrint('SMS failed: ${result.message}');
     }
   }
 
