@@ -17,5 +17,9 @@ service cloud.firestore {
     match /temple_queue_state/{stateId} {
       allow read, write: if true;
     }
+
+    match /temple_queue_fasting/{fastingId} {
+      allow read, write: if true;
+    }
   }
 }

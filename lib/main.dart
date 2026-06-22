@@ -26,18 +26,77 @@ class _TempleQueueAppState extends State<TempleQueueApp> {
   final TempleQueueStore store = TempleQueueStore();
   late final Future<void> _initialization = store.initialize();
 
+  @override
+  void dispose() {
+    store.dispose();
+    super.dispose();
+  }
+
   ThemeData _buildTheme(BuildContext context) {
     return ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF0F766E),
+        seedColor: const Color(0xFF800000), // Deep Maroon
+        primary: const Color(0xFF800000),
+        secondary: const Color(0xFFD4AF37), // Temple Gold
+        tertiary: const Color(0xFFF4A460), // Sandalwood
         brightness: Brightness.light,
       ),
-      scaffoldBackgroundColor: const Color(0xFFF4F7FB),
+      scaffoldBackgroundColor: const Color(0xFFFFFDF0), // Sandalwood Cream
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: const Color(0xFFFAF2E0),
+        labelStyle: const TextStyle(color: Color(0xFF800000)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xFFD4AF37)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xFFE6C280)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xFF800000), width: 2),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: const Color(0xFF800000),
+          foregroundColor: const Color(0xFFFFD700),
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Color(0xFFD4AF37), width: 1.5),
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFF800000),
+          side: const BorderSide(color: Color(0xFFD4AF37), width: 1.5),
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: const Color(0xFFFAF2E0),
+        disabledColor: Colors.grey,
+        selectedColor: const Color(0xFF800000),
+        secondarySelectedColor: const Color(0xFF800000),
+        padding: const EdgeInsets.all(8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: Color(0xFFE6C280)),
+        ),
+        labelStyle: const TextStyle(color: Color(0xFF800000), fontWeight: FontWeight.bold),
+      ),
       textTheme: Theme.of(context).textTheme.apply(
-        bodyColor: const Color(0xFF153047),
-        displayColor: const Color(0xFF153047),
-        fontFamily: 'Georgia',
+        bodyColor: const Color(0xFF4A0E17),
+        displayColor: const Color(0xFF4A0E17),
+        fontFamily: 'Noto Sans Tamil',
       ),
     );
   }
@@ -53,14 +112,30 @@ class _TempleQueueAppState extends State<TempleQueueApp> {
             debugShowCheckedModeBanner: false,
             theme: theme,
             home: const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
+              body: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(color: Color(0xFF800000)),
+                    SizedBox(height: 16),
+                    Text(
+                      'அருள் வரிசை - துவக்கமாகிறது...',
+                      style: TextStyle(
+                        color: Color(0xFF800000),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           );
         }
 
         return MaterialApp(
           debugShowCheckedModeBanner: false,
-          title: 'Temple Reference Queue',
+          title: 'அருள் வரிசை (Arul Varisai)',
           theme: theme,
           home: TempleLandingPage(store: store),
         );
@@ -189,7 +264,8 @@ class RegistrationRecord {
     required this.groupSize,
     required this.entryIds,
     required this.createdAt,
-  }) : status = 'Waiting approval';
+    this.spiritualLevel = 1,
+  }) : status = 'அனுமதிக்கு காத்திருக்கிறது';
 
   final String queueNumber;
   final String memoryCode;
@@ -200,6 +276,7 @@ class RegistrationRecord {
   final int groupSize;
   final List<String> entryIds;
   final DateTime createdAt;
+  int spiritualLevel;
   String status;
 }
 
@@ -210,76 +287,40 @@ class TempleQueueStore {
 
   static const List<TempleMember> members = [
     TempleMember(
-      name: 'Arun',
-      username: 'arun',
-      password: 'arun@111',
-      smsPhone: String.fromEnvironment('TEMPLE_MEMBER_ARUN_PHONE'),
+      name: 'ஆசான் அகத்தியர்',
+      username: 'agathiyar',
+      password: 'guru@agathiyar',
+      smsPhone: String.fromEnvironment('TEMPLE_MEMBER_AGATHIYAR_PHONE'),
     ),
     TempleMember(
-      name: 'Bala',
-      username: 'bala',
-      password: 'bala@112',
-      smsPhone: String.fromEnvironment('TEMPLE_MEMBER_BALA_PHONE'),
+      name: 'ஆசான் திருமூலர்',
+      username: 'thirumoolar',
+      password: 'guru@thirumoolar',
+      smsPhone: String.fromEnvironment('TEMPLE_MEMBER_THIRUMOOLAR_PHONE'),
     ),
     TempleMember(
-      name: 'Chandra',
-      username: 'chandra',
-      password: 'chandra@113',
-      smsPhone: String.fromEnvironment('TEMPLE_MEMBER_CHANDRA_PHONE'),
+      name: 'ஆசான் இராமானுஜர்',
+      username: 'ramanujar',
+      password: 'guru@ramanujar',
+      smsPhone: String.fromEnvironment('TEMPLE_MEMBER_RAMANUJAR_PHONE'),
     ),
     TempleMember(
-      name: 'Deepa',
-      username: 'deepa',
-      password: 'deepa@114',
-      smsPhone: String.fromEnvironment('TEMPLE_MEMBER_DEEPA_PHONE'),
+      name: 'ஆசான் வள்ளலார்',
+      username: 'vallalar',
+      password: 'guru@vallalar',
+      smsPhone: String.fromEnvironment('TEMPLE_MEMBER_VALLALAR_PHONE'),
     ),
     TempleMember(
-      name: 'Eshwar',
-      username: 'eshwar',
-      password: 'eshwar@115',
-      smsPhone: String.fromEnvironment('TEMPLE_MEMBER_ESHWAR_PHONE'),
+      name: 'ஆசான் ரமணர்',
+      username: 'ramanar',
+      password: 'guru@ramanar',
+      smsPhone: String.fromEnvironment('TEMPLE_MEMBER_RAMANAR_PHONE'),
     ),
     TempleMember(
-      name: 'Farah',
-      username: 'farah',
-      password: 'farah@116',
-      smsPhone: String.fromEnvironment('TEMPLE_MEMBER_FARAH_PHONE'),
-    ),
-    TempleMember(
-      name: 'Gopi',
-      username: 'gopi',
-      password: 'gopi@117',
-      smsPhone: String.fromEnvironment('TEMPLE_MEMBER_GOPI_PHONE'),
-    ),
-    TempleMember(
-      name: 'Hema',
-      username: 'hema',
-      password: 'hema@118',
-      smsPhone: String.fromEnvironment('TEMPLE_MEMBER_HEMA_PHONE'),
-    ),
-    TempleMember(
-      name: 'Ibrahim',
-      username: 'ibrahim',
-      password: 'ibrahim@119',
-      smsPhone: String.fromEnvironment('TEMPLE_MEMBER_IBRAHIM_PHONE'),
-    ),
-    TempleMember(
-      name: 'Jaya',
-      username: 'jaya',
-      password: 'jaya@120',
-      smsPhone: String.fromEnvironment('TEMPLE_MEMBER_JAYA_PHONE'),
-    ),
-    TempleMember(
-      name: 'Kiran',
-      username: 'kiran',
-      password: 'kiran@121',
-      smsPhone: String.fromEnvironment('TEMPLE_MEMBER_KIRAN_PHONE'),
-    ),
-    TempleMember(
-      name: 'Lakshmi',
-      username: 'lakshmi',
-      password: 'lakshmi@122',
-      smsPhone: String.fromEnvironment('TEMPLE_MEMBER_LAKSHMI_PHONE'),
+      name: 'ஆசான் பட்டினத்தார்',
+      username: 'pattinathar',
+      password: 'guru@pattinathar',
+      smsPhone: String.fromEnvironment('TEMPLE_MEMBER_PATTINATHAR_PHONE'),
     ),
   ];
 
@@ -289,10 +330,15 @@ class TempleQueueStore {
   final Random _random = Random.secure();
   int nextQueueNumber = 1;
   bool _firebaseEnabled = false;
+  
+  String fastingTitle = '';
+  DateTime? fastingTime;
+
+  StreamSubscription? _registrationsSubscription;
+  StreamSubscription? _notificationsSubscription;
+  StreamSubscription? _fastingSubscription;
 
   bool get isFirebaseEnabled => _firebaseEnabled;
-
-  StreamSubscription? _notificationSubscription;
 
   Stream<QuerySnapshot<Map<String, dynamic>>> get registrationsCollectionStream =>
       _registrationsCollection.snapshots();
@@ -300,18 +346,60 @@ class TempleQueueStore {
   RegistrationRecord registrationFromMapWrapper(Map<String, dynamic> data) =>
       _registrationFromMap(data);
 
+  Future<void> initialize() async {
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      ).timeout(const Duration(seconds: 10));
+      _firebaseEnabled = true;
+    } catch (error) {
+      debugPrint('Firebase initialization failed: $error');
+      _firebaseEnabled = false;
+      return;
+    }
+
+    await _runFirebaseTask(_seedTempleMembers);
+    await _runFirebaseTask(_loadFromFirebase);
+    _setupFirebaseListeners();
+  }
+
+  void _setupFirebaseListeners() {
+    if (!_firebaseEnabled) {
+      return;
+    }
+
+    _fastingSubscription = FirebaseFirestore.instance
+        .collection('temple_queue_fasting')
+        .doc('current')
+        .snapshots()
+        .listen(
+      (snapshot) {
+        if (snapshot.exists) {
+          final data = snapshot.data();
+          if (data != null) {
+            fastingTitle = (data['title'] as String?) ?? '';
+            final timeStr = data['time'] as String?;
+            fastingTime = timeStr != null ? DateTime.tryParse(timeStr) : null;
+            debugPrint('Fasting event updated in real-time: $fastingTitle');
+          }
+        }
+      },
+      onError: (error) => debugPrint('Error listening to fasting details: $error'),
+    );
+  }
+
   void startNotificationListener(
     TempleMember member,
     void Function(TempleNotification) onNewNotification,
   ) {
-    _notificationSubscription?.cancel();
+    _notificationsSubscription?.cancel();
     if (!_firebaseEnabled) {
       return;
     }
 
     final startTime = DateTime.now();
 
-    _notificationSubscription = _notificationsCollection
+    _notificationsSubscription = _notificationsCollection
         .snapshots()
         .listen((snapshot) {
       bool hasNew = false;
@@ -321,19 +409,15 @@ class TempleQueueStore {
           if (data != null) {
             final notification = _notificationFromMap(data);
             
-            // Only alert for notifications created after listener started
             if (notification.createdAt.isAfter(startTime)) {
-              // Check if it belongs to this member or Temple Office
               if (notification.memberName == member.name ||
                   notification.memberName == 'Temple Office') {
                 
-                // Show native notification!
                 PlatformNotificationHelper.showNotification(
                   notification.title,
                   notification.message,
                 );
 
-                // Add to local list if not already there
                 if (!notifications.any((n) => n.createdAt == notification.createdAt && n.message == notification.message)) {
                   notifications.insert(0, notification);
                   hasNew = true;
@@ -351,65 +435,14 @@ class TempleQueueStore {
   }
 
   void stopNotificationListener() {
-    _notificationSubscription?.cancel();
-    _notificationSubscription = null;
+    _notificationsSubscription?.cancel();
+    _notificationsSubscription = null;
   }
 
-  Future<void> persistLogin(TempleMember member) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('logged_in_username', member.username);
-      await prefs.setInt('login_time_ms', DateTime.now().millisecondsSinceEpoch);
-    } catch (e) {
-      debugPrint('Error persisting login state: $e');
-    }
-  }
-
-  Future<void> clearPersistedLogin() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('logged_in_username');
-      await prefs.remove('login_time_ms');
-    } catch (e) {
-      debugPrint('Error clearing persisted login state: $e');
-    }
-  }
-
-  Future<TempleMember?> getPersistedLogin() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final username = prefs.getString('logged_in_username');
-      final loginTimeMs = prefs.getInt('login_time_ms');
-      
-      if (username != null && loginTimeMs != null) {
-        final now = DateTime.now().millisecondsSinceEpoch;
-        const oneDayMs = 24 * 60 * 60 * 1000; // 24 hours
-        if (now - loginTimeMs < oneDayMs) {
-          return members.firstWhereOrNull((m) => m.username == username);
-        } else {
-          await clearPersistedLogin();
-        }
-      }
-    } catch (e) {
-      debugPrint('Error loading persisted login state: $e');
-    }
-    return null;
-  }
-
-  Future<void> initialize() async {
-    try {
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      ).timeout(const Duration(seconds: 10));
-      _firebaseEnabled = true;
-    } catch (error) {
-      debugPrint('Firebase initialization failed: $error');
-      _firebaseEnabled = false;
-      return;
-    }
-
-    await _runFirebaseTask(_seedTempleMembers);
-    await _runFirebaseTask(_loadFromFirebase);
+  void dispose() {
+    _registrationsSubscription?.cancel();
+    _notificationsSubscription?.cancel();
+    _fastingSubscription?.cancel();
   }
 
   Future<RegistrationRecord> registerVisitor({
@@ -454,6 +487,7 @@ class TempleQueueStore {
             groupSize: groupSize,
             entryIds: entryIds,
             createdAt: DateTime.now(),
+            spiritualLevel: 1,
           );
 
           transaction.set(_stateDocument, <String, dynamic>{
@@ -464,16 +498,16 @@ class TempleQueueStore {
           transaction.set(_registrationsCollection.doc(queueNumber), _registrationToMap(registration!));
 
           final userNotification = TempleNotification(
-            title: 'New visitor registered',
+            title: 'புதிய சாதகர் பதிவு',
             message:
-                '$name booked $ticketCount ticket(s) for $groupSize member(s). Queue $queueNumber and memory code $memoryCode are waiting for entry.',
+                '$name அடியார் $ticketCount இணைப்பில் $groupSize உறுப்பினர்களுடன் இணைந்தார். அருள் எண் $queueNumber மற்றும் ஞான குறியீடு $memoryCode அனுமதிக்கு காத்திருக்கிறது.',
             memberName: referenceMember,
             createdAt: registration!.createdAt,
           );
           final officeNotification = TempleNotification(
-            title: 'Temple office alert',
+            title: 'நிர்வாக அறிவிப்பு',
             message:
-                '$name completed registration with queue $queueNumber and memory code $memoryCode.',
+                '$name அடியார் அருள் வரிசையில் $queueNumber மற்றும் ஞான குறியீடு $memoryCode உடன் வெற்றிகரமாக இணைந்துள்ளார்.',
             memberName: 'Temple Office',
             createdAt: registration!.createdAt,
           );
@@ -487,16 +521,16 @@ class TempleQueueStore {
           registrations.insert(0, registration!);
 
           final userNotification = TempleNotification(
-            title: 'New visitor registered',
+            title: 'புதிய சாதகர் பதிவு',
             message:
-                '$name booked $ticketCount ticket(s) for $groupSize member(s). Queue $queueNumber and memory code $memoryCode are waiting for entry.',
+                '$name அடியார் $ticketCount இணைப்பில் $groupSize உறுப்பினர்களுடன் இணைந்தார். அருள் எண் $queueNumber மற்றும் ஞான குறியீடு $memoryCode அனுமதிக்கு காத்திருக்கிறது.',
             memberName: referenceMember,
             createdAt: registration!.createdAt,
           );
           final officeNotification = TempleNotification(
-            title: 'Temple office alert',
+            title: 'நிர்வாக அறிவிப்பு',
             message:
-                '$name completed registration with queue $queueNumber and memory code $memoryCode.',
+                '$name அடியார் அருள் வரிசையில் $queueNumber மற்றும் ஞான குறியீடு $memoryCode உடன் வெற்றிகரமாக இணைந்துள்ளார்.',
             memberName: 'Temple Office',
             createdAt: registration!.createdAt,
           );
@@ -528,20 +562,21 @@ class TempleQueueStore {
         groupSize: groupSize,
         entryIds: entryIds,
         createdAt: DateTime.now(),
+        spiritualLevel: 1,
       );
 
       registrations.insert(0, registration!);
       final userNotification = TempleNotification(
-        title: 'New visitor registered',
+        title: 'புதிய சாதகர் பதிவு',
         message:
-            '$name booked $ticketCount ticket(s) for $groupSize member(s). Queue $queueNumber and memory code $memoryCode are waiting for entry.',
+            '$name அடியார் $ticketCount இணைப்பில் $groupSize உறுப்பினர்களுடன் இணைந்தார். அருள் எண் $queueNumber மற்றும் ஞான குறியீடு $memoryCode அனுமதிக்கு காத்திருக்கிறது.',
         memberName: referenceMember,
         createdAt: registration!.createdAt,
       );
       final officeNotification = TempleNotification(
-        title: 'Temple office alert',
+        title: 'நிர்வாக அறிவிப்பு',
         message:
-            '$name completed registration with queue $queueNumber and memory code $memoryCode.',
+            '$name அடியார் அருள் வரிசையில் $queueNumber மற்றும் ஞான குறியீடு $memoryCode உடன் வெற்றிகரமாக இணைந்துள்ளார்.',
         memberName: 'Temple Office',
         createdAt: registration!.createdAt,
       );
@@ -558,6 +593,7 @@ class TempleQueueStore {
 
     _sendRegistrationSmsNotifications(
       name: name,
+      phone: phone,
       queueNumber: queueNumber,
       memoryCode: memoryCode,
       referenceMember: referenceMember,
@@ -570,6 +606,7 @@ class TempleQueueStore {
 
   Future<void> _sendRegistrationSmsNotifications({
     required String name,
+    required String phone,
     required String queueNumber,
     required String memoryCode,
     required String referenceMember,
@@ -579,38 +616,60 @@ class TempleQueueStore {
     try {
       final member = members.firstWhereOrNull((m) => m.name == referenceMember);
       if (member != null && member.smsPhone.isNotEmpty) {
-        final message = 'Hello ${member.name}, a new visitor has registered under your reference:\n'
-            'Name: $name\n'
-            'Queue Number: $queueNumber\n'
-            'Memory Code: $memoryCode\n'
-            'Tickets: $ticketCount ($groupSize members)';
+        final message = 'வணக்கம் ${member.name}! சாதகர் $name ($phone) உங்களுடைய அருள் வரிசையில் இணைந்துள்ளார்.\n'
+            'அருள் எண்: $queueNumber\n'
+            'ஞான குறியீடு: $memoryCode\n'
+            'இணைப்புகள்: $ticketCount ($groupSize நபர்)';
         final result = await _smsService.sendSms(
           recipients: [member.smsPhone],
           message: message,
         );
-        debugPrint('SMS notification to ${member.name} (${member.smsPhone}) sent: ${result.sent}, message: ${result.message}');
-      } else {
-        debugPrint('Reference member $referenceMember not found or has no phone number configured.');
+        debugPrint('SMS sent: ${result.sent}');
       }
     } catch (e) {
-      debugPrint('Error sending SMS to reference member: $e');
+      debugPrint('SMS error: $e');
     }
+  }
 
+  Future<void> persistLogin(TempleMember member) async {
     try {
-      if (templeOfficeSmsPhone.isNotEmpty) {
-        final message = 'Office Alert: New registration by $name.\n'
-            'Queue: $queueNumber\n'
-            'Memory Code: $memoryCode\n'
-            'Reference Person: $referenceMember';
-        final result = await _smsService.sendSms(
-          recipients: [templeOfficeSmsPhone],
-          message: message,
-        );
-        debugPrint('SMS notification to Temple Office ($templeOfficeSmsPhone) sent: ${result.sent}, message: ${result.message}');
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('logged_in_username', member.username);
+      await prefs.setInt('login_time_ms', DateTime.now().millisecondsSinceEpoch);
+    } catch (e) {
+      debugPrint('Persist login failed: $e');
+    }
+  }
+
+  Future<void> clearPersistedLogin() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('logged_in_username');
+      await prefs.remove('login_time_ms');
+    } catch (e) {
+      debugPrint('Clear login failed: $e');
+    }
+  }
+
+  Future<TempleMember?> getPersistedLogin() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final username = prefs.getString('logged_in_username');
+      final loginTimeMs = prefs.getInt('login_time_ms');
+      
+      if (username != null && loginTimeMs != null) {
+        final now = DateTime.now().millisecondsSinceEpoch;
+        const oneDayMs = 24 * 60 * 60 * 1000;
+        if (now - loginTimeMs < oneDayMs) {
+          return members.firstWhereOrNull((m) => m.username == username);
+        } else {
+          await clearPersistedLogin();
+        }
       }
     } catch (e) {
-      debugPrint('Error sending SMS to temple office: $e');
+      debugPrint('Load login failed: $e');
     }
+    return null;
   }
 
   TempleMember? authenticateMember(String username, String password) {
@@ -653,6 +712,68 @@ class TempleQueueStore {
     }
   }
 
+  Future<void> elevateSpiritualLevel(RegistrationRecord record) async {
+    if (record.spiritualLevel >= 10) return;
+    record.spiritualLevel++;
+    
+    if (record.spiritualLevel == 10) {
+      record.status = 'ஆசான் நிலை (முதிர்ச்சி)';
+    }
+
+    if (_firebaseEnabled) {
+      try {
+        await _registrationsCollection.doc(record.queueNumber).update(
+          <String, dynamic>{
+            'spiritualLevel': record.spiritualLevel,
+            'status': record.status,
+          },
+        ).timeout(const Duration(seconds: 5));
+      } catch (error) {
+        debugPrint('Error updating spiritual level: $error');
+      }
+    }
+
+    try {
+      final message = 'அன்பு ${record.name}, உங்கள் குருநாதர் உங்கள் ஞான நிலையை ${record.spiritualLevel} ஆக உயர்த்தியுள்ளார். உன்னுள் இருக்கும் இறைவனை நோக்கி முன்னேறுங்கள்!';
+      final result = await _smsService.sendSms(
+        recipients: [record.phone],
+        message: message,
+      );
+      debugPrint('Progress SMS sent: ${result.sent}');
+    } catch (e) {
+      debugPrint('Error sending progress SMS: $e');
+    }
+  }
+
+  Future<void> updateFastingEvent(String title, DateTime time) async {
+    fastingTitle = title;
+    fastingTime = time;
+    
+    if (!_firebaseEnabled) return;
+    try {
+      await FirebaseFirestore.instance.collection('temple_queue_fasting').doc('current').set({
+        'title': title,
+        'time': time.toIso8601String(),
+        'updatedAt': Timestamp.fromDate(DateTime.now()),
+      }).timeout(const Duration(seconds: 5));
+    } catch (e) {
+      debugPrint('Error writing fasting: $e');
+    }
+  }
+
+  DateTime _parseDateTime(dynamic value) {
+    if (value == null) {
+      return DateTime.now();
+    }
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+    if (value is String) {
+      return DateTime.tryParse(value) ?? DateTime.now();
+    }
+    return DateTime.now();
+  }
+
   Future<void> _loadFromFirebase() async {
     if (!_firebaseEnabled) {
       return;
@@ -678,6 +799,18 @@ class TempleQueueStore {
               .map((doc) => _notificationFromMap(doc.data()))
               .toList()
             ..sort((left, right) => right.createdAt.compareTo(left.createdAt));
+
+      final fastingSnapshot = await FirebaseFirestore.instance
+          .collection('temple_queue_fasting')
+          .doc('current')
+          .get()
+          .timeout(const Duration(seconds: 4));
+      if (fastingSnapshot.exists) {
+        final data = fastingSnapshot.data();
+        fastingTitle = (data?['title'] as String?) ?? '';
+        final timeStr = data?['time'] as String?;
+        fastingTime = timeStr != null ? DateTime.tryParse(timeStr) : null;
+      }
 
       registrations
         ..clear()
@@ -788,19 +921,6 @@ class TempleQueueStore {
     return code;
   }
 
-  DateTime _parseDateTime(dynamic value) {
-    if (value == null) {
-      return DateTime.now();
-    }
-    if (value is Timestamp) {
-      return value.toDate();
-    }
-    if (value is String) {
-      return DateTime.tryParse(value) ?? DateTime.now();
-    }
-    return DateTime.now();
-  }
-
   Map<String, dynamic> _registrationToMap(RegistrationRecord record) {
     return <String, dynamic>{
       'queueNumber': record.queueNumber,
@@ -814,6 +934,7 @@ class TempleQueueStore {
       'createdAt': Timestamp.fromDate(record.createdAt),
       'status': record.status,
       'type': 'Visitor',
+      'spiritualLevel': record.spiritualLevel,
     };
   }
 
@@ -841,6 +962,7 @@ class TempleQueueStore {
               .toList()
           : [],
       createdAt: _parseDateTime(data['createdAt']),
+      spiritualLevel: (data['spiritualLevel'] as num?)?.toInt() ?? 1,
     )..status = (data['status'] as String?) ?? 'Waiting approval';
   }
 
@@ -852,7 +974,6 @@ class TempleQueueStore {
       createdAt: _parseDateTime(data['createdAt']),
     );
   }
-
 }
 
 class TempleLandingPage extends StatelessWidget {
@@ -866,7 +987,7 @@ class TempleLandingPage extends StatelessWidget {
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFFF4F7FB), Color(0xFFE4F1EE), Color(0xFFFDF7ED)],
+            colors: [Color(0xFF4A0E17), Color(0xFF800000), Color(0xFF6B1D2F)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -876,28 +997,27 @@ class TempleLandingPage extends StatelessWidget {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 760),
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                padding: const EdgeInsets.fromLTRB(20, 40, 20, 24),
                 children: [
                   _HeroBanner(
-                    title: 'Temple Reference Queue',
-                    subtitle:
-                        'Use separate pages for visitor registration, user profile access, and temple member login.',
+                    title: 'அருள் வரிசை',
+                    subtitle: 'குரு-சிஷ்ய பரம்பரை ஆன்மீகப் பலகை மற்றும் தியான கண்காணிப்பு தளம்.',
                     totalRegistrations: store.registrations.length,
                     totalNotifications: store.notifications.length,
                     nextQueueNumber:
                         'Q-${store.nextQueueNumber.toString().padLeft(3, '0')}',
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
                   _SectionCard(
-                    title: 'Choose a page',
-                    subtitle: 'Each audience has its own screen and flow.',
+                    title: 'ஆன்மீக நுழைவாயில்',
+                    subtitle: 'உங்கள் தற்போதைய ஆன்மீகப் பயணத்தைத் தேர்வுசெய்யவும்.',
                     child: Column(
                       children: [
                         _NavigationTile(
                           key: const ValueKey('nav_user_registration'),
-                          title: 'User Registration',
-                          message: 'Open the visitor registration page.',
-                          icon: Icons.how_to_reg_outlined,
+                          title: 'சாதகர் பதிவு (Seeker Registration)',
+                          message: 'ஆசானின் அருள் வரிசையில் அடியாராக இணையுங்கள்.',
+                          icon: Icons.how_to_reg,
                           onTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
@@ -907,12 +1027,12 @@ class TempleLandingPage extends StatelessWidget {
                             );
                           },
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 14),
                         _NavigationTile(
                           key: const ValueKey('nav_user_profile'),
-                          title: 'User Profile',
-                          message: 'Open your saved queue and profile page.',
-                          icon: Icons.person_outline,
+                          title: 'சாதகரின் சுயவிவரம் (Seeker Profile)',
+                          message: 'உங்கள் தற்போதைய அருள் நிலை மற்றும் தியானப் பலகையைத் திறக்கவும்.',
+                          icon: Icons.brightness_high,
                           onTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
@@ -921,13 +1041,12 @@ class TempleLandingPage extends StatelessWidget {
                             );
                           },
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 14),
                         _NavigationTile(
                           key: const ValueKey('nav_temple_members'),
-                          title: 'Temple Members',
-                          message:
-                              'Login with username and password to manage registrations.',
-                          icon: Icons.badge_outlined,
+                          title: 'ஆசான்கள் தளம் (Aasan Dashboard)',
+                          message: 'குருவின் தியானக் கட்டுப்பாட்டு பலகை மற்றும் சீடர்களின் நிலைகள்.',
+                          icon: Icons.spa,
                           onTap: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
@@ -975,14 +1094,18 @@ class _UserRegistrationPageState extends State<UserRegistrationPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('User Registration')),
+      appBar: AppBar(
+        title: const Text('சாதகர் பதிவு'),
+        backgroundColor: const Color(0xFF800000),
+        foregroundColor: const Color(0xFFFFD700),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
           _SectionCard(
-            title: 'Register visitor',
+            title: 'அருள் வரிசையில் இணைதல்',
             subtitle:
-                'Create a queue number before opening the user profile page.',
+                'ஆசானைத் தேர்ந்தெடுத்து அருள் வரிசையில் உங்களுக்கான இடத்தைப் பெறுக.',
             child: Form(
               key: _formKey,
               child: Column(
@@ -992,11 +1115,11 @@ class _UserRegistrationPageState extends State<UserRegistrationPage> {
                     key: const ValueKey('registration_name'),
                     controller: _nameController,
                     decoration: const InputDecoration(
-                      labelText: 'Full name',
-                      prefixIcon: Icon(Icons.person_outline),
+                      labelText: 'முழுப் பெயர் (Name)',
+                      prefixIcon: Icon(Icons.person, color: Color(0xFF800000)),
                     ),
                     validator: (value) => value == null || value.trim().isEmpty
-                        ? 'Enter the visitor name'
+                        ? 'உங்கள் பெயரை உள்ளிடவும்'
                         : null,
                   ),
                   const SizedBox(height: 14),
@@ -1005,12 +1128,12 @@ class _UserRegistrationPageState extends State<UserRegistrationPage> {
                     controller: _phoneController,
                     keyboardType: TextInputType.phone,
                     decoration: const InputDecoration(
-                      labelText: 'Mobile number',
-                      prefixIcon: Icon(Icons.phone_outlined),
+                      labelText: 'அலைபேசி எண் (Mobile Number)',
+                      prefixIcon: Icon(Icons.phone, color: Color(0xFF800000)),
                     ),
                     validator: (value) =>
                         value == null || value.trim().length < 8
-                        ? 'Enter a valid phone number'
+                        ? 'சரியான அலைபேசி எண்ணை உள்ளிடவும்'
                         : null,
                   ),
                   const SizedBox(height: 14),
@@ -1018,8 +1141,8 @@ class _UserRegistrationPageState extends State<UserRegistrationPage> {
                     key: const ValueKey('registration_reference'),
                     initialValue: _selectedReferenceMember,
                     decoration: const InputDecoration(
-                      labelText: 'Reference member',
-                      prefixIcon: Icon(Icons.group_outlined),
+                      labelText: 'குரு / ஆசான் தேர்வு (Aasan)',
+                      prefixIcon: Icon(Icons.menu_book, color: Color(0xFF800000)),
                     ),
                     items: TempleQueueStore.members
                         .map<DropdownMenuItem<String>>(
@@ -1040,9 +1163,9 @@ class _UserRegistrationPageState extends State<UserRegistrationPage> {
                   ),
                   const SizedBox(height: 16),
                   _StepperCard(
-                    label: 'Tickets',
+                    label: 'இணைப்புகள் (Spiritual Connections)',
                     value: _ticketCount.toString(),
-                    hint: '1 ticket = 2 users',
+                    hint: '1 இணைப்பு = 2 சீடர்கள்',
                     onAdd: () => setState(() => _ticketCount++),
                     onRemove: _ticketCount > 1
                         ? () => setState(() => _ticketCount--)
@@ -1050,12 +1173,12 @@ class _UserRegistrationPageState extends State<UserRegistrationPage> {
                     addKey: const ValueKey('ticket_add'),
                     removeKey: const ValueKey('ticket_remove'),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 20),
                   FilledButton.icon(
                     key: const ValueKey('register_submit'),
                     onPressed: () => _submitRegistration(),
-                    icon: const Icon(Icons.badge_outlined),
-                    label: const Text('Generate queue ID'),
+                    icon: const Icon(Icons.brightness_low),
+                    label: const Text('அருள் வரிசையில் இணை'),
                   ),
                 ],
               ),
@@ -1085,8 +1208,10 @@ class _UserRegistrationPageState extends State<UserRegistrationPage> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
+        backgroundColor: const Color(0xFF800000),
         content: Text(
-          'Queue ${registration.queueNumber} generated for ${registration.name}',
+          'அருள் எண் ${registration.queueNumber} சாதகர் ${registration.name} பெயருக்கு ஒதுக்கப்பட்டது!',
+          style: const TextStyle(color: Color(0xFFFFD700), fontWeight: FontWeight.bold),
         ),
       ),
     );
@@ -1121,6 +1246,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   final _profilePhoneController = TextEditingController();
   final _profileQueueController = TextEditingController();
   RegistrationRecord? _activeUser;
+  StreamSubscription? _profileSubscription;
 
   @override
   void initState() {
@@ -1129,31 +1255,92 @@ class _UserProfilePageState extends State<UserProfilePage> {
     if (_activeUser != null) {
       _profilePhoneController.text = _activeUser!.phone;
       _profileQueueController.text = _activeUser!.queueNumber;
+      _startLiveProfileListener();
+    }
+  }
+
+  void _startLiveProfileListener() {
+    _profileSubscription?.cancel();
+    if (!widget.store.isFirebaseEnabled || _activeUser == null) return;
+    
+    try {
+      _profileSubscription = widget.store.registrationsCollectionStream.listen((snapshot) {
+        final match = snapshot.docs
+            .map((doc) => widget.store.registrationFromMapWrapper(doc.data()))
+            .firstWhereOrNull((record) => record.queueNumber == _activeUser!.queueNumber);
+        
+        if (match != null && mounted) {
+          setState(() {
+            _activeUser = match;
+          });
+        }
+      });
+    } catch (e) {
+      debugPrint('Error profile stream: $e');
     }
   }
 
   @override
   void dispose() {
+    _profileSubscription?.cancel();
     _profilePhoneController.dispose();
     _profileQueueController.dispose();
     super.dispose();
+  }
+
+  String _getVerseForLevel(int level) {
+    switch (level) {
+      case 1:
+        return '“அன்பும் சிவமும் இரண்டென்பர் அறிவிலார்...\nஅன்பே சிவமாவது ஆரும் அறிந்திலாரே.”\n- திருமூலர் (திருமந்திரம்)';
+      case 2:
+        return '“ஒன்றே குலமும் ஒருவனே தேவனும்...\nநன்றே நினைமின் நமனில்லை நாணாமே.”\n- திருமூலர் (திருமந்திரம்)';
+      case 3:
+        return '“தானம் தவம்இரண்டும் தங்கா வியனுலகம்...\nவானம் வழங்காது எனின்.”\n- திருவள்ளுவர் (திருக்குறள்)';
+      case 4:
+        return '“அறிவற்றங் காக்குங் கருவி செறுவார்க்கும்...\nஉள்ளழிக்க லாகா அரண்.”\n- திருவள்ளுவர் (திருக்குறள்)';
+      case 5:
+        return '“எப்பொருள் எத்தன்மைத் தாயினும் அப்பொருள்...\nமெய்ப்பொருள் காண்ப தறிவு.”\n- திருவள்ளுவர் (திருக்குறள்)';
+      case 6:
+        return '“ஒன்றே பரமன் உலகங்கள் ஏழினுக்கு...\nஅன்றே அருளிய மாமறை ஓதிடும்.”\n- திருமூலர் (திருமந்திரம்)';
+      case 7:
+        return '“உடம்பார் அழியின் உயிரார் அழிவர்...\nதிடம்பட மெய்ஞ்ஞானம் சேரவும் மாட்டார்.”\n- திருமூலர் (திருமந்திரம்)';
+      case 8:
+        return '“உடம்பினை முன்னம் இழுக்கென்று இருந்தேன்...\nஉடம்பினுக் குள்ளே உறுபொருள் கண்டேன்.”\n- திருமூலர் (திருமந்திரம்)';
+      case 9:
+        return '“உள்ளம் பெருங்கோயில் ஊனுடம்பு ஆலயம்...\nவள்ளல் பிரானார்க்கு வாய்கோபுர வாசல்.”\n- திருமூலர் (திருமந்திரம்)';
+      case 10:
+        return '“குருவே சிவமெனக் கூறினன் நந்தி...\nகுருவே சிவமாவது ஆரும் அறிந்திலாரே.”\n- திருமூலர் (திருமந்திரம்)';
+      default:
+        return '“அன்பே சிவம்.”';
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final activeUser = _activeUser;
     return Scaffold(
-      appBar: AppBar(title: const Text('User Profile')),
+      appBar: AppBar(
+        title: const Text('ஆன்மீக சுயவிவரம்'),
+        backgroundColor: const Color(0xFF800000),
+        foregroundColor: const Color(0xFFFFD700),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          if (activeUser != null && widget.store.fastingTime != null && widget.store.fastingTitle.isNotEmpty) ...[
+            _FastingCountdownWidget(
+              title: widget.store.fastingTitle,
+              targetTime: widget.store.fastingTime!,
+            ),
+            const SizedBox(height: 16),
+          ],
           _SectionCard(
             title: activeUser == null
-                ? 'Open your profile'
-                : 'Your temple pass',
+                ? 'உங்கள் அருள் நிலையைத் திறக்கவும்'
+                : 'ஆன்மீக அனுமதி அட்டை (Spiritual Pass)',
             subtitle: activeUser == null
-                ? 'Use the phone number with your queue number or memory code.'
-                : 'Your ticket set is ready. Show the queue number or memory code at the gate.',
+                ? 'அலைபேசி எண் மற்றும் அருள் எண் / ஞான குறியீடு உள்ளிடவும்.'
+                : 'ஆசானின் அருள் வரிசையில் அடியாரின் தற்போதைய நிலை.',
             child: activeUser == null
                 ? _buildLoginForm()
                 : _buildProfile(activeUser),
@@ -1174,11 +1361,11 @@ class _UserProfilePageState extends State<UserProfilePage> {
             controller: _profilePhoneController,
             keyboardType: TextInputType.phone,
             decoration: const InputDecoration(
-              labelText: 'Registered phone number',
-              prefixIcon: Icon(Icons.phone_android_outlined),
+              labelText: 'பதிவு செய்த அலைபேசி எண்',
+              prefixIcon: Icon(Icons.phone_android, color: Color(0xFF800000)),
             ),
             validator: (value) => value == null || value.trim().isEmpty
-                ? 'Enter the phone number'
+                ? 'அலைபேசி எண்ணை உள்ளிடவும்'
                 : null,
           ),
           const SizedBox(height: 14),
@@ -1186,17 +1373,17 @@ class _UserProfilePageState extends State<UserProfilePage> {
             key: const ValueKey('profile_queue'),
             controller: _profileQueueController,
             decoration: const InputDecoration(
-              labelText: 'Queue number or memory code',
-              prefixIcon: Icon(Icons.confirmation_number_outlined),
+              labelText: 'அருள் எண் அல்லது ஞான குறியீடு',
+              prefixIcon: Icon(Icons.vpn_key, color: Color(0xFF800000)),
             ),
             validator: (value) => value == null || value.trim().isEmpty
-                ? 'Enter the queue number or memory code'
+                ? 'விவரங்களை உள்ளிடவும்'
                 : null,
           ),
           const SizedBox(height: 14),
           FilledButton(
             onPressed: () => _openProfile(),
-            child: const Text('Open my profile'),
+            child: const Text('சுயவிவரத்தைத் திறக்கவும்'),
           ),
           const SizedBox(height: 12),
           OutlinedButton.icon(
@@ -1207,8 +1394,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
                 ),
               );
             },
-            icon: const Icon(Icons.how_to_reg_outlined),
-            label: const Text('Go to registration'),
+            icon: const Icon(Icons.how_to_reg),
+            label: const Text('புதிதாகப் பதிவு செய்க'),
           ),
         ],
       ),
@@ -1223,20 +1410,56 @@ class _UserProfilePageState extends State<UserProfilePage> {
           spacing: 12,
           runSpacing: 12,
           children: [
-            _InfoChip(label: 'Queue number', value: record.queueNumber),
-            _InfoChip(label: 'Memory code', value: record.memoryCode),
-            _InfoChip(label: 'Name', value: record.name),
-            _InfoChip(label: 'Tickets', value: record.ticketCount.toString()),
-            _InfoChip(label: 'Members', value: record.groupSize.toString()),
-            _InfoChip(label: 'Status', value: record.status),
+            _InfoChip(label: 'அருள் எண்', value: record.queueNumber),
+            _InfoChip(label: 'ஞான குறியீடு', value: record.memoryCode),
+            _InfoChip(label: 'அடியார் பெயர்', value: record.name),
+            _InfoChip(label: 'இணைப்புகள்', value: record.ticketCount.toString()),
+            _InfoChip(label: 'சீடர்கள் எண்ணிக்கை', value: record.groupSize.toString()),
+            _InfoChip(label: 'தற்போதைய ஞான நிலை', value: 'நிலை ${record.spiritualLevel} / 10'),
+            _InfoChip(label: 'நிலைத் தன்மை', value: record.status),
           ],
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 24),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFAF2E0),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFD4AF37), width: 1.5),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const Icon(Icons.auto_stories, color: Color(0xFF800000), size: 24),
+              const SizedBox(height: 6),
+              const Text(
+                'தினசரி அருள்வாக்கு (Grace Word)',
+                style: TextStyle(
+                  color: Color(0xFF800000),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                _getVerseForLevel(record.spiritualLevel),
+                style: const TextStyle(
+                  color: Color(0xFF4A0E17),
+                  fontStyle: FontStyle.italic,
+                  fontSize: 15,
+                  height: 1.4,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
         Text(
-          'Entry IDs for the whole group',
+          'சீடர்களின் அடையாள எண்கள் (Disciples ID List)',
           style: Theme.of(
             context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: const Color(0xFF800000)),
         ),
         const SizedBox(height: 10),
         Wrap(
@@ -1246,20 +1469,21 @@ class _UserProfilePageState extends State<UserProfilePage> {
               .map<Widget>(
                 (entryId) => Chip(
                   label: Text(entryId),
-                  backgroundColor: const Color(0xFFEAF4F2),
+                  backgroundColor: const Color(0xFFFAF2E0),
                 ),
               )
               .toList(),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 20),
         OutlinedButton.icon(
           onPressed: () => setState(() {
+            _profileSubscription?.cancel();
             _activeUser = null;
             _profilePhoneController.clear();
             _profileQueueController.clear();
           }),
           icon: const Icon(Icons.logout),
-          label: const Text('Log out'),
+          label: const Text('வெளியேறு'),
         ),
       ],
     );
@@ -1278,7 +1502,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
 
     if (match == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No matching registration found.')),
+        const SnackBar(content: Text('இத்தகவல்களில் அடியார் பதிவு எதுவும் இல்லை.')),
       );
       return;
     }
@@ -1286,6 +1510,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
     setState(() {
       _activeUser = match;
     });
+    _startLiveProfileListener();
   }
 }
 
@@ -1366,25 +1591,29 @@ class _TempleMemberPageState extends State<TempleMemberPage> {
   Widget build(BuildContext context) {
     final loggedInMember = _loggedInMember;
     final admittedCount = widget.store.registrations
-        .where((record) => record.status == 'Admitted')
+        .where((record) => record.status == 'Admitted' || record.status.contains('அனுமதிக்கப்பட்டவர்'))
         .length;
     final waitingCount = widget.store.registrations
-        .where((record) => record.status == 'Waiting approval')
+        .where((record) => record.status.contains('காத்திருக்கிறது') || record.status == 'Waiting approval')
         .length;
     final rejectedCount = widget.store.registrations
-        .where((record) => record.status == 'Rejected')
+        .where((record) => record.status == 'Rejected' || record.status.contains('நிராகரிக்கப்பட்டவர்'))
         .length;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Temple Members')),
+      appBar: AppBar(
+        title: const Text('ஆசான்கள் பலகை'),
+        backgroundColor: const Color(0xFF800000),
+        foregroundColor: const Color(0xFFFFD700),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
           _SectionCard(
-            title: loggedInMember == null ? 'Member login' : 'Member dashboard',
+            title: loggedInMember == null ? 'ஆசான் உள்நுழைவு' : 'ஆன்மீகப் பலகை (Dashboard)',
             subtitle: loggedInMember == null
-                ? 'Log in with your username and password to manage registrations.'
-                : 'Signed in as ${loggedInMember.name}.',
+                ? 'ஆசான் கணக்கை நிர்வகிக்க உங்கள் கடவுச்சொல்லை உள்ளிடவும்.'
+                : 'வணக்கம், ${loggedInMember.name}. தங்களின் அருள் வரிசையில் உள்ள சாதகர்களின் விவரங்கள்.',
             child: loggedInMember == null
                 ? _buildLoginForm()
                 : _buildDashboard(
@@ -1396,15 +1625,15 @@ class _TempleMemberPageState extends State<TempleMemberPage> {
           ),
           const SizedBox(height: 16),
           _SectionCard(
-            title: 'Registered users',
+            title: 'வரிசையில் உள்ள சாதகர்கள் (Seekers in Lineage)',
             subtitle:
-                'Temple staff can review every registered visitor and their queue status.',
+                'ஆசான்கள் தங்கள் சீடர்களின் நிலைகளை இங்கிருந்து கண்காணிக்கலாம்.',
             child: widget.store.registrations.isEmpty
                 ? const _EmptyState(
-                    title: 'No registered users yet',
+                    title: 'இன்னும் பதிவுகள் இல்லை',
                     message:
-                        'New registrations will appear here automatically.',
-                    icon: Icons.people_alt_outlined,
+                        'புதிய சாதகர்கள் இணையும் போது இங்கே காட்டப்படும்.',
+                    icon: Icons.people_outline,
                   )
                 : Column(
                     children: widget.store.registrations
@@ -1414,8 +1643,9 @@ class _TempleMemberPageState extends State<TempleMemberPage> {
                             child: _RegistrationTile(
                               record: record,
                               onMarkEntered: () =>
-                                  _updateStatus(record, 'Admitted'),
-                              onReject: () => _updateStatus(record, 'Rejected'),
+                                  _updateStatus(record, 'அனுமதிக்கப்பட்டவர்'),
+                              onReject: () => _updateStatus(record, 'நிராகரிக்கப்பட்டவர்'),
+                              onElevate: () => _elevateDisciple(record),
                             ),
                           ),
                         )
@@ -1425,16 +1655,16 @@ class _TempleMemberPageState extends State<TempleMemberPage> {
           const SizedBox(height: 16),
           _SectionCard(
             title: loggedInMember == null
-                ? 'Temple inbox'
-                : '${loggedInMember.name} notifications',
+                ? 'நிர்வாக அறிவிப்புகள்'
+                : '${loggedInMember.name} - அறிவிப்பு அலர்ட்',
             subtitle:
-                'Each registration sends a notification to the selected reference member.',
+                'புதிய சாதகர்கள் இணையும் போது இங்கே உடனுக்குடன் அறிவிக்கப்படும்.',
             child: widget.store.notifications.isEmpty
                 ? const _EmptyState(
-                    title: 'No notifications yet',
+                    title: 'அறிவிப்புகள் எதுவும் இல்லை',
                     message:
-                        'As soon as visitors register, alerts will appear here.',
-                    icon: Icons.notifications_none_outlined,
+                        'சாதகர் பதிவு அலர்ட்கள் இங்கே தோன்றும்.',
+                    icon: Icons.notifications_none,
                   )
                 : Column(
                     children: widget.store.notifications
@@ -1470,11 +1700,11 @@ class _TempleMemberPageState extends State<TempleMemberPage> {
             key: const ValueKey('member_username'),
             controller: _usernameController,
             decoration: const InputDecoration(
-              labelText: 'Username',
-              prefixIcon: Icon(Icons.person_outline),
+              labelText: 'பயனர் பெயர் (Username)',
+              prefixIcon: Icon(Icons.spa, color: Color(0xFF800000)),
             ),
             validator: (value) => value == null || value.trim().isEmpty
-                ? 'Enter the username'
+                ? 'பயனர் பெயரை உள்ளிடவும்'
                 : null,
           ),
           const SizedBox(height: 14),
@@ -1483,17 +1713,17 @@ class _TempleMemberPageState extends State<TempleMemberPage> {
             controller: _passwordController,
             obscureText: true,
             decoration: const InputDecoration(
-              labelText: 'Password',
-              prefixIcon: Icon(Icons.lock_outline),
+              labelText: 'ரகசியக் குறியீடு (Password)',
+              prefixIcon: Icon(Icons.lock, color: Color(0xFF800000)),
             ),
             validator: (value) => value == null || value.trim().isEmpty
-                ? 'Enter the password'
+                ? 'கடவுச்சொல்லை உள்ளிடவும்'
                 : null,
           ),
           const SizedBox(height: 14),
           FilledButton(
             onPressed: () => _login(),
-            child: const Text('Login to temple dashboard'),
+            child: const Text('பலகையினுள் பிரவேசி'),
           ),
         ],
       ),
@@ -1513,24 +1743,29 @@ class _TempleMemberPageState extends State<TempleMemberPage> {
           spacing: 12,
           runSpacing: 12,
           children: [
-            _InfoChip(label: 'Member', value: member.name),
+            _InfoChip(label: 'ஆசான்', value: member.name),
             _InfoChip(
-              label: 'Alerts',
+              label: 'அலர்ட்கள்',
               value: widget.store.notifications
                   .where((item) => item.memberName == member.name)
                   .length
                   .toString(),
             ),
-            _InfoChip(label: 'Admitted', value: admittedCount.toString()),
+            _InfoChip(label: 'அனுமதிக்கப்பட்டோர்', value: admittedCount.toString()),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
         _DashboardChart(
           admitted: admittedCount,
           waiting: waitingCount,
           rejected: rejectedCount,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
+        _FastingDeclarationCard(
+          store: widget.store,
+          onUpdate: () => setState(() {}),
+        ),
+        const SizedBox(height: 20),
         OutlinedButton.icon(
           onPressed: () {
             widget.store.clearPersistedLogin();
@@ -1542,7 +1777,7 @@ class _TempleMemberPageState extends State<TempleMemberPage> {
             });
           },
           icon: const Icon(Icons.logout),
-          label: const Text('Sign out'),
+          label: const Text('ஆசான் கணக்கிலிருந்து வெளியேறு'),
         ),
       ],
     );
@@ -1552,6 +1787,19 @@ class _TempleMemberPageState extends State<TempleMemberPage> {
     await widget.store.updateRegistrationStatus(record, status);
     if (mounted) {
       setState(() {});
+    }
+  }
+
+  Future<void> _elevateDisciple(RegistrationRecord record) async {
+    await widget.store.elevateSpiritualLevel(record);
+    if (mounted) {
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${record.name} அடியாரின் ஞான நிலை உயர்த்தப்பட்டது! தற்போதைய நிலை: ${record.spiritualLevel}'),
+          backgroundColor: const Color(0xFF800000),
+        ),
+      );
     }
   }
 
@@ -1568,7 +1816,7 @@ class _TempleMemberPageState extends State<TempleMemberPage> {
 
     if (member == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid username or password.')),
+        const SnackBar(content: Text('பயனர் பெயர் அல்லது கடவுச்சொல் தவறானது.')),
       );
       return;
     }
@@ -1610,17 +1858,18 @@ class _HeroBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         gradient: const LinearGradient(
-          colors: [Color(0xFF0F766E), Color(0xFF164E63), Color(0xFF1F2937)],
+          colors: [Color(0xFF4A0E17), Color(0xFF800000), Color(0xFFD4AF37)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
+        border: Border.all(color: const Color(0xFFD4AF37), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF164E63).withValues(alpha: 0.24),
+            color: const Color(0xFF800000).withValues(alpha: 0.3),
             blurRadius: 24,
             offset: const Offset(0, 12),
           ),
@@ -1632,7 +1881,7 @@ class _HeroBanner extends StatelessWidget {
           Text(
             title,
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-              color: Colors.white,
+              color: const Color(0xFFFFD700),
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -1649,19 +1898,19 @@ class _HeroBanner extends StatelessWidget {
             runSpacing: 12,
             children: [
               _MiniStat(
-                label: 'Registrations',
+                label: 'மொத்த அடியார்கள்',
                 value: totalRegistrations.toString(),
-                icon: Icons.event_note_outlined,
+                icon: Icons.grain,
               ),
               _MiniStat(
-                label: 'Notifications',
+                label: 'அறிவிப்புகள்',
                 value: totalNotifications.toString(),
-                icon: Icons.notifications_outlined,
+                icon: Icons.notifications_active,
               ),
               _MiniStat(
-                label: 'Next queue',
+                label: 'அடுத்த அருள் எண்',
                 value: nextQueueNumber,
-                icon: Icons.numbers_outlined,
+                icon: Icons.tag,
               ),
             ],
           ),
@@ -1694,7 +1943,7 @@ class _MiniStat extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(icon, color: Colors.white),
+          Icon(icon, color: const Color(0xFFFFD700)),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -1702,15 +1951,15 @@ class _MiniStat extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  style: const TextStyle(color: Colors.white70, fontSize: 11),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   value,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
                   ),
                 ),
               ],
@@ -1743,36 +1992,38 @@ class _DashboardChart extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FBFD),
+        color: const Color(0xFFFAF2E0),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: const Color(0xFFD4AF37)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Queue status chart',
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          const Text(
+            'அருள் நிலைகளின் பகுப்பாய்வு',
+            style: TextStyle(
+              color: Color(0xFF800000),
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
           ),
           const SizedBox(height: 14),
           _ChartRow(
-            label: 'Admitted',
+            label: 'அனுமதித்தவை',
             value: admitted,
             ratio: admittedValue,
-            color: const Color(0xFF0F766E),
+            color: const Color(0xFF800000),
           ),
           const SizedBox(height: 10),
           _ChartRow(
-            label: 'Waiting',
+            label: 'காத்திருப்பவை',
             value: waiting,
             ratio: waitingValue,
             color: const Color(0xFFF59E0B),
           ),
           const SizedBox(height: 10),
           _ChartRow(
-            label: 'Rejected',
+            label: 'நிராகரித்தவை',
             value: rejected,
             ratio: rejectedValue,
             color: const Color(0xFFEF4444),
@@ -1800,7 +2051,7 @@ class _ChartRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        SizedBox(width: 84, child: Text(label)),
+        SizedBox(width: 90, child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold))),
         Expanded(
           child: ClipRRect(
             borderRadius: BorderRadius.circular(999),
@@ -1815,7 +2066,7 @@ class _ChartRow extends StatelessWidget {
         const SizedBox(width: 10),
         SizedBox(
           width: 24,
-          child: Text(value.toString(), textAlign: TextAlign.end),
+          child: Text(value.toString(), textAlign: TextAlign.end, style: const TextStyle(fontWeight: FontWeight.bold)),
         ),
       ],
     );
@@ -1836,13 +2087,14 @@ class _SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFFFAF2E0),
         borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFD4AF37), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF153047).withValues(alpha: 0.08),
+            color: const Color(0xFF800000).withValues(alpha: 0.05),
             blurRadius: 30,
             offset: const Offset(0, 10),
           ),
@@ -1855,14 +2107,14 @@ class _SectionCard extends StatelessWidget {
             title,
             style: Theme.of(
               context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800, color: const Color(0xFF800000)),
           ),
           const SizedBox(height: 6),
           Text(
             subtitle,
             style: Theme.of(
               context,
-            ).textTheme.bodyMedium?.copyWith(color: const Color(0xFF587086)),
+            ).textTheme.bodyMedium?.copyWith(color: const Color(0xFF6B584E)),
           ),
           const SizedBox(height: 16),
           child,
@@ -1889,7 +2141,7 @@ class _NavigationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xFFF8FBFD),
+      color: const Color(0xFFFFFDF0),
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         onTap: onTap,
@@ -1898,7 +2150,7 @@ class _NavigationTile extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(color: const Color(0xFFE6C280)),
           ),
           child: Row(
             children: [
@@ -1906,10 +2158,11 @@ class _NavigationTile extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEAF4F2),
+                  color: const Color(0xFFFAF2E0),
                   borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFD4AF37)),
                 ),
-                child: Icon(icon, color: const Color(0xFF0F766E)),
+                child: Icon(icon, color: const Color(0xFF800000)),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -1920,14 +2173,15 @@ class _NavigationTile extends StatelessWidget {
                       title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w800,
+                        color: const Color(0xFF800000),
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(message),
+                    Text(message, style: const TextStyle(fontSize: 12)),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right),
+              const Icon(Icons.chevron_right, color: Color(0xFF800000)),
             ],
           ),
         ),
@@ -1947,9 +2201,9 @@ class _InfoChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF4FBFA),
+        color: const Color(0xFFFFFDF0),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFD6ECE7)),
+        border: Border.all(color: const Color(0xFFE6C280)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1959,14 +2213,14 @@ class _InfoChip extends StatelessWidget {
             label,
             style: Theme.of(
               context,
-            ).textTheme.labelMedium?.copyWith(color: const Color(0xFF5E7483)),
+            ).textTheme.labelMedium?.copyWith(color: const Color(0xFF800000), fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
           Text(
             value,
             style: Theme.of(
               context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800, color: const Color(0xFF4A0E17)),
           ),
         ],
       ),
@@ -1998,9 +2252,9 @@ class _StepperCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7FAFC),
+        color: const Color(0xFFFFFDF0),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: const Color(0xFFE6C280)),
       ),
       child: Row(
         children: [
@@ -2008,12 +2262,12 @@ class _StepperCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: Theme.of(context).textTheme.labelLarge),
+                Text(label, style: Theme.of(context).textTheme.labelLarge?.copyWith(color: const Color(0xFF800000), fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
                 Text(
                   hint,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: const Color(0xFF64748B),
+                    color: const Color(0xFF6B584E),
                   ),
                 ),
               ],
@@ -2022,18 +2276,18 @@ class _StepperCard extends StatelessWidget {
           IconButton(
             key: removeKey,
             onPressed: onRemove,
-            icon: const Icon(Icons.remove_circle_outline),
+            icon: const Icon(Icons.remove_circle_outline, color: Color(0xFF800000)),
           ),
           Text(
             value,
             style: Theme.of(
               context,
-            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: const Color(0xFF800000)),
           ),
           IconButton(
             key: addKey,
             onPressed: onAdd,
-            icon: const Icon(Icons.add_circle_outline),
+            icon: const Icon(Icons.add_circle_outline, color: Color(0xFF800000)),
           ),
         ],
       ),
@@ -2052,9 +2306,9 @@ class _NotificationTile extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7FAFC),
+        color: const Color(0xFFFFFDF0),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: const Color(0xFFE6C280)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2066,13 +2320,15 @@ class _NotificationTile extends StatelessWidget {
                   notification.title,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w800,
+                    color: const Color(0xFF800000),
                   ),
                 ),
               ),
               Text(
                 notification.memberName,
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: const Color(0xFF0F766E),
+                  color: const Color(0xFF800000),
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ],
@@ -2084,7 +2340,7 @@ class _NotificationTile extends StatelessWidget {
             _formatTime(notification.createdAt),
             style: Theme.of(
               context,
-            ).textTheme.bodySmall?.copyWith(color: const Color(0xFF64748B)),
+            ).textTheme.bodySmall?.copyWith(color: const Color(0xFF6B584E)),
           ),
         ],
       ),
@@ -2103,20 +2359,22 @@ class _RegistrationTile extends StatelessWidget {
     required this.record,
     required this.onMarkEntered,
     required this.onReject,
+    required this.onElevate,
   });
 
   final RegistrationRecord record;
   final VoidCallback onMarkEntered;
   final VoidCallback onReject;
+  final VoidCallback onElevate;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFFFFFDF0),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE7EEF3)),
+        border: Border.all(color: const Color(0xFFE6C280)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2128,28 +2386,34 @@ class _RegistrationTile extends StatelessWidget {
                   record.name,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w800,
+                    color: const Color(0xFF800000),
                   ),
                 ),
               ),
-              Chip(label: Text(record.status)),
+              Chip(
+                label: Text(record.status),
+                backgroundColor: const Color(0xFFFAF2E0),
+              ),
             ],
           ),
           const SizedBox(height: 8),
           Text(
-            '${record.queueNumber} - ${record.phone} - Memory ${record.memoryCode}',
+            'அருள் எண்: ${record.queueNumber}  |  அலைபேசி: ${record.phone}  |  ஞான குறியீடு: ${record.memoryCode}',
+            style: const TextStyle(fontSize: 13, color: Color(0xFF6B584E)),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'தற்போதைய தியான ஞான நிலை: நிலை ${record.spiritualLevel} / 10',
+            style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF800000)),
           ),
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
-              _ChipLabel(label: 'Reference', value: record.referenceMember),
-              _ChipLabel(label: 'Memory code', value: record.memoryCode),
-              _ChipLabel(
-                label: 'Tickets',
-                value: record.ticketCount.toString(),
-              ),
-              _ChipLabel(label: 'Members', value: record.groupSize.toString()),
+              _ChipLabel(label: 'குருநாதர்', value: record.referenceMember),
+              _ChipLabel(label: 'இணைப்பு', value: record.ticketCount.toString()),
+              _ChipLabel(label: 'சீடர்கள்', value: record.groupSize.toString()),
             ],
           ),
           const SizedBox(height: 12),
@@ -2157,7 +2421,10 @@ class _RegistrationTile extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: record.entryIds
-                .map((entryId) => Chip(label: Text(entryId)))
+                .map((entryId) => Chip(
+                      label: Text(entryId),
+                      backgroundColor: const Color(0xFFFAF2E0),
+                    ))
                 .toList(),
           ),
           const SizedBox(height: 12),
@@ -2167,14 +2434,24 @@ class _RegistrationTile extends StatelessWidget {
             children: [
               FilledButton.tonalIcon(
                 onPressed: onMarkEntered,
-                icon: const Icon(Icons.check_circle_outline),
-                label: const Text('Mark entered'),
+                icon: const Icon(Icons.check_circle, color: Color(0xFF800000)),
+                label: const Text('அனுமதி (Admit)'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFAF2E0),
+                  foregroundColor: const Color(0xFF800000),
+                ),
               ),
               OutlinedButton.icon(
                 onPressed: onReject,
-                icon: const Icon(Icons.block_outlined),
-                label: const Text('Reject'),
+                icon: const Icon(Icons.block),
+                label: const Text('நிராகரி (Reject)'),
               ),
+              if (record.spiritualLevel < 10)
+                FilledButton.icon(
+                  onPressed: onElevate,
+                  icon: const Icon(Icons.trending_up, color: Color(0xFFFFD700)),
+                  label: const Text('ஞான நிலை உயர்த்து'),
+                ),
             ],
           ),
         ],
@@ -2192,7 +2469,7 @@ class _ChipLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Chip(
-      backgroundColor: const Color(0xFFF4FBFA),
+      backgroundColor: const Color(0xFFFAF2E0),
       label: Text('$label: $value'),
     );
   }
@@ -2215,25 +2492,276 @@ class _EmptyState extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FBFD),
+        color: const Color(0xFFFFFDF0),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: const Color(0xFFE6C280)),
       ),
       child: Column(
         children: [
-          Icon(icon, size: 38, color: const Color(0xFF0F766E)),
+          Icon(icon, size: 38, color: const Color(0xFF800000)),
           const SizedBox(height: 10),
           Text(
             title,
             style: Theme.of(
               context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800, color: const Color(0xFF800000)),
           ),
           const SizedBox(height: 4),
-          Text(message, textAlign: TextAlign.center),
+          Text(message, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12)),
         ],
       ),
     );
+  }
+}
+
+class _FastingCountdownWidget extends StatefulWidget {
+  const _FastingCountdownWidget({
+    required this.title,
+    required this.targetTime,
+  });
+
+  final String title;
+  final DateTime targetTime;
+
+  @override
+  State<_FastingCountdownWidget> createState() => _FastingCountdownWidgetState();
+}
+
+class _FastingCountdownWidgetState extends State<_FastingCountdownWidget> {
+  late Timer _timer;
+  Duration _timeLeft = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateTimeLeft();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) {
+        setState(() {
+          _updateTimeLeft();
+        });
+      }
+    });
+  }
+
+  void _updateTimeLeft() {
+    final now = DateTime.now();
+    if (widget.targetTime.isAfter(now)) {
+      _timeLeft = widget.targetTime.difference(now);
+    } else {
+      _timeLeft = Duration.zero;
+      _timer.cancel();
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_timeLeft == Duration.zero) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF800000), // Deep Maroon
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFD4AF37), width: 1.5),
+        ),
+        child: Column(
+          children: [
+            const Icon(Icons.alarm_on, color: Color(0xFFFFD700), size: 28),
+            const SizedBox(height: 8),
+            Text(
+              '${widget.title} விரதம் ஆரம்பமாகிவிட்டது / நிறைவடைந்துவிட்டது!',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    final hours = _timeLeft.inHours.toString().padLeft(2, '0');
+    final minutes = (_timeLeft.inMinutes % 60).toString().padLeft(2, '0');
+    final seconds = (_timeLeft.inSeconds % 60).toString().padLeft(2, '0');
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFAF2E0),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFD4AF37), width: 1.5),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.timer_outlined, color: Color(0xFF800000), size: 28),
+          const SizedBox(height: 6),
+          Text(
+            'விரத அறிவிப்பு: ${widget.title}',
+            style: const TextStyle(
+              color: Color(0xFF800000),
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '$hours:$minutes:$seconds',
+            style: const TextStyle(
+              color: Color(0xFF800000),
+              fontFamily: 'Courier',
+              fontWeight: FontWeight.bold,
+              fontSize: 24,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'விரதம் தொடங்க இன்னும் மீதமுள்ள நேரம்',
+            style: TextStyle(color: Colors.black54, fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FastingDeclarationCard extends StatefulWidget {
+  const _FastingDeclarationCard({required this.store, required this.onUpdate});
+
+  final TempleQueueStore store;
+  final VoidCallback onUpdate;
+
+  @override
+  State<_FastingDeclarationCard> createState() => _FastingDeclarationCardState();
+}
+
+class _FastingDeclarationCardState extends State<_FastingDeclarationCard> {
+  final _titleController = TextEditingController();
+  DateTime? _selectedTime;
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Divider(color: Color(0xFFE6C280)),
+        const SizedBox(height: 10),
+        const Text(
+          'விரத அறிவிப்புப் பலகை (Fasting Declaration)',
+          style: TextStyle(
+            color: Color(0xFF800000),
+            fontWeight: FontWeight.bold,
+            fontSize: 15,
+          ),
+        ),
+        const SizedBox(height: 10),
+        TextFormField(
+          controller: _titleController,
+          decoration: const InputDecoration(
+            labelText: 'விரதப் பெயர் (எ.கா: பிரதோஷ விரதம்)',
+            prefixIcon: Icon(Icons.edit_calendar_outlined, color: Color(0xFF800000)),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                _selectedTime == null
+                    ? 'விரத நேரம் தேர்வு செய்யப்படவில்லை'
+                    : 'தேர்ந்தெடுக்கப்பட்ட நேரம்:\n${_formatDateTime(_selectedTime!)}',
+                style: const TextStyle(fontSize: 12, color: Colors.black87),
+              ),
+            ),
+            ElevatedButton.icon(
+              onPressed: _pickDateTime,
+              icon: const Icon(Icons.date_range, color: Color(0xFF800000)),
+              label: const Text('நேரம் தேர்ந்தெடு'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFAF2E0),
+                foregroundColor: const Color(0xFF800000),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        FilledButton.icon(
+          onPressed: _declareFasting,
+          icon: const Icon(Icons.campaign),
+          label: const Text('அனைத்து அடியாருக்கும் விரதம் அறிவிக்கவும்'),
+        ),
+      ],
+    );
+  }
+
+  String _formatDateTime(DateTime dt) {
+    final hour = dt.hour.toString().padLeft(2, '0');
+    final min = dt.minute.toString().padLeft(2, '0');
+    return '${dt.day}/${dt.month}/${dt.year} $hour:$min';
+  }
+
+  Future<void> _pickDateTime() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 30)),
+    );
+    if (date == null) return;
+
+    if (!mounted) return;
+
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+    if (time == null) return;
+
+    setState(() {
+      _selectedTime = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    });
+  }
+
+  Future<void> _declareFasting() async {
+    if (_titleController.text.trim().isEmpty || _selectedTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('விவரங்களை முழுமையாக நிரப்பவும்.')),
+      );
+      return;
+    }
+
+    await widget.store.updateFastingEvent(
+      _titleController.text.trim(),
+      _selectedTime!,
+    );
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('விரத அறிவிப்பு வெளியிடப்பட்டது!'),
+        backgroundColor: Color(0xFF800000),
+      ),
+    );
+    
+    _titleController.clear();
+    setState(() {
+      _selectedTime = null;
+    });
+    widget.onUpdate();
   }
 }
 
