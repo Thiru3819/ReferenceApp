@@ -17,34 +17,19 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
         return android;
       case TargetPlatform.iOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for ios - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return ios;
       case TargetPlatform.macOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for macos - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return macOS;
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for linux - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return linux;
       default:
         throw UnsupportedError(
           'DefaultFirebaseOptions are not supported for this platform.',
@@ -55,6 +40,49 @@ class DefaultFirebaseOptions {
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyDfKKs0ZnTze16o2ASXgi0-rdm_q25kMnQ',
     appId: '1:1029834482024:android:193b7f7f959747801ab6dd',
+    messagingSenderId: '1029834482024',
+    projectId: 'reference-f2e84',
+    storageBucket: 'reference-f2e84.firebasestorage.app',
+  );
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyDfKKs0ZnTze16o2ASXgi0-rdm_q25kMnQ',
+    appId: '1:1029834482024:web:193b7f7f959747801ab6dd',
+    messagingSenderId: '1029834482024',
+    projectId: 'reference-f2e84',
+    authDomain: 'reference-f2e84.firebaseapp.com',
+    storageBucket: 'reference-f2e84.firebasestorage.app',
+  );
+
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyDfKKs0ZnTze16o2ASXgi0-rdm_q25kMnQ',
+    appId: '1:1029834482024:ios:193b7f7f959747801ab6dd',
+    messagingSenderId: '1029834482024',
+    projectId: 'reference-f2e84',
+    storageBucket: 'reference-f2e84.firebasestorage.app',
+    iosBundleId: 'com.example.flutterApplication',
+  );
+
+  static const FirebaseOptions macOS = FirebaseOptions(
+    apiKey: 'AIzaSyDfKKs0ZnTze16o2ASXgi0-rdm_q25kMnQ',
+    appId: '1:1029834482024:ios:193b7f7f959747801ab6dd',
+    messagingSenderId: '1029834482024',
+    projectId: 'reference-f2e84',
+    storageBucket: 'reference-f2e84.firebasestorage.app',
+    iosBundleId: 'com.example.flutterApplication',
+  );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyDfKKs0ZnTze16o2ASXgi0-rdm_q25kMnQ',
+    appId: '1:1029834482024:windows:193b7f7f959747801ab6dd',
+    messagingSenderId: '1029834482024',
+    projectId: 'reference-f2e84',
+    storageBucket: 'reference-f2e84.firebasestorage.app',
+  );
+
+  static const FirebaseOptions linux = FirebaseOptions(
+    apiKey: 'AIzaSyDfKKs0ZnTze16o2ASXgi0-rdm_q25kMnQ',
+    appId: '1:1029834482024:linux:193b7f7f959747801ab6dd',
     messagingSenderId: '1029834482024',
     projectId: 'reference-f2e84',
     storageBucket: 'reference-f2e84.firebasestorage.app',

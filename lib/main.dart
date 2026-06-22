@@ -6,8 +6,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'firebase_options.dart';
+import 'notification_helper.dart';
 
 void main() {
   runApp(const TempleQueueApp());
@@ -290,6 +292,110 @@ class TempleQueueStore {
 
   bool get isFirebaseEnabled => _firebaseEnabled;
 
+  StreamSubscription? _notificationSubscription;
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> get registrationsCollectionStream =>
+      _registrationsCollection.snapshots();
+
+  RegistrationRecord registrationFromMapWrapper(Map<String, dynamic> data) =>
+      _registrationFromMap(data);
+
+  void startNotificationListener(
+    TempleMember member,
+    void Function(TempleNotification) onNewNotification,
+  ) {
+    _notificationSubscription?.cancel();
+    if (!_firebaseEnabled) {
+      return;
+    }
+
+    final startTime = DateTime.now();
+
+    _notificationSubscription = _notificationsCollection
+        .snapshots()
+        .listen((snapshot) {
+      bool hasNew = false;
+      for (final change in snapshot.docChanges) {
+        if (change.type == DocumentChangeType.added) {
+          final data = change.doc.data();
+          if (data != null) {
+            final notification = _notificationFromMap(data);
+            
+            // Only alert for notifications created after listener started
+            if (notification.createdAt.isAfter(startTime)) {
+              // Check if it belongs to this member or Temple Office
+              if (notification.memberName == member.name ||
+                  notification.memberName == 'Temple Office') {
+                
+                // Show native notification!
+                PlatformNotificationHelper.showNotification(
+                  notification.title,
+                  notification.message,
+                );
+
+                // Add to local list if not already there
+                if (!notifications.any((n) => n.createdAt == notification.createdAt && n.message == notification.message)) {
+                  notifications.insert(0, notification);
+                  hasNew = true;
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      if (hasNew) {
+        onNewNotification(notifications.first);
+      }
+    });
+  }
+
+  void stopNotificationListener() {
+    _notificationSubscription?.cancel();
+    _notificationSubscription = null;
+  }
+
+  Future<void> persistLogin(TempleMember member) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('logged_in_username', member.username);
+      await prefs.setInt('login_time_ms', DateTime.now().millisecondsSinceEpoch);
+    } catch (e) {
+      debugPrint('Error persisting login state: $e');
+    }
+  }
+
+  Future<void> clearPersistedLogin() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('logged_in_username');
+      await prefs.remove('login_time_ms');
+    } catch (e) {
+      debugPrint('Error clearing persisted login state: $e');
+    }
+  }
+
+  Future<TempleMember?> getPersistedLogin() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final username = prefs.getString('logged_in_username');
+      final loginTimeMs = prefs.getInt('login_time_ms');
+      
+      if (username != null && loginTimeMs != null) {
+        final now = DateTime.now().millisecondsSinceEpoch;
+        const oneDayMs = 24 * 60 * 60 * 1000; // 24 hours
+        if (now - loginTimeMs < oneDayMs) {
+          return members.firstWhereOrNull((m) => m.username == username);
+        } else {
+          await clearPersistedLogin();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading persisted login state: $e');
+    }
+    return null;
+  }
+
   Future<void> initialize() async {
     try {
       await Firebase.initializeApp(
@@ -312,50 +418,199 @@ class TempleQueueStore {
     required String referenceMember,
     required int ticketCount,
   }) async {
-    final queueNumber = 'Q-${nextQueueNumber.toString().padLeft(3, '0')}';
-    final memoryCode = _generateMemoryCode();
+    RegistrationRecord? registration;
+    int allocatedQueueNumber = nextQueueNumber;
+    String queueNumber = '';
+    String memoryCode = '';
     final groupSize = ticketCount * 2;
-    final entryIds = List<String>.generate(
-      groupSize,
-      (index) => '$queueNumber-${(index + 1).toString().padLeft(2, '0')}',
-    );
 
-    final registration = RegistrationRecord(
+    if (_firebaseEnabled) {
+      try {
+        await FirebaseFirestore.instance.runTransaction((transaction) async {
+          final stateSnapshot = await transaction.get(_stateDocument);
+          int currentNext = 1;
+          if (stateSnapshot.exists) {
+            currentNext = (stateSnapshot.data()?['nextQueueNumber'] as int?) ?? 1;
+          }
+
+          allocatedQueueNumber = currentNext;
+          queueNumber = 'Q-${allocatedQueueNumber.toString().padLeft(3, '0')}';
+          
+          final randomCode = (_random.nextInt(9000) + 1000).toString();
+          memoryCode = randomCode;
+
+          final entryIds = List<String>.generate(
+            groupSize,
+            (index) => '$queueNumber-${(index + 1).toString().padLeft(2, '0')}',
+          );
+
+          registration = RegistrationRecord(
+            queueNumber: queueNumber,
+            memoryCode: memoryCode,
+            name: name,
+            phone: phone,
+            referenceMember: referenceMember,
+            ticketCount: ticketCount,
+            groupSize: groupSize,
+            entryIds: entryIds,
+            createdAt: DateTime.now(),
+          );
+
+          transaction.set(_stateDocument, <String, dynamic>{
+            'nextQueueNumber': currentNext + 1,
+            'updatedAt': Timestamp.fromDate(DateTime.now()),
+          }, SetOptions(merge: true));
+
+          transaction.set(_registrationsCollection.doc(queueNumber), _registrationToMap(registration!));
+
+          final userNotification = TempleNotification(
+            title: 'New visitor registered',
+            message:
+                '$name booked $ticketCount ticket(s) for $groupSize member(s). Queue $queueNumber and memory code $memoryCode are waiting for entry.',
+            memberName: referenceMember,
+            createdAt: registration!.createdAt,
+          );
+          final officeNotification = TempleNotification(
+            title: 'Temple office alert',
+            message:
+                '$name completed registration with queue $queueNumber and memory code $memoryCode.',
+            memberName: 'Temple Office',
+            createdAt: registration!.createdAt,
+          );
+
+          transaction.set(_notificationsCollection.doc(), _notificationToMap(userNotification));
+          transaction.set(_notificationsCollection.doc(), _notificationToMap(officeNotification));
+        }).timeout(const Duration(seconds: 8));
+
+        if (registration != null) {
+          nextQueueNumber = allocatedQueueNumber + 1;
+          registrations.insert(0, registration!);
+
+          final userNotification = TempleNotification(
+            title: 'New visitor registered',
+            message:
+                '$name booked $ticketCount ticket(s) for $groupSize member(s). Queue $queueNumber and memory code $memoryCode are waiting for entry.',
+            memberName: referenceMember,
+            createdAt: registration!.createdAt,
+          );
+          final officeNotification = TempleNotification(
+            title: 'Temple office alert',
+            message:
+                '$name completed registration with queue $queueNumber and memory code $memoryCode.',
+            memberName: 'Temple Office',
+            createdAt: registration!.createdAt,
+          );
+
+          notifications.insert(0, officeNotification);
+          notifications.insert(0, userNotification);
+        }
+      } catch (error) {
+        debugPrint('Firestore transaction failed, falling back to local: $error');
+      }
+    }
+
+    if (registration == null) {
+      allocatedQueueNumber = nextQueueNumber;
+      queueNumber = 'Q-${allocatedQueueNumber.toString().padLeft(3, '0')}';
+      memoryCode = _generateMemoryCode();
+      final entryIds = List<String>.generate(
+        groupSize,
+        (index) => '$queueNumber-${(index + 1).toString().padLeft(2, '0')}',
+      );
+
+      registration = RegistrationRecord(
+        queueNumber: queueNumber,
+        memoryCode: memoryCode,
+        name: name,
+        phone: phone,
+        referenceMember: referenceMember,
+        ticketCount: ticketCount,
+        groupSize: groupSize,
+        entryIds: entryIds,
+        createdAt: DateTime.now(),
+      );
+
+      registrations.insert(0, registration!);
+      final userNotification = TempleNotification(
+        title: 'New visitor registered',
+        message:
+            '$name booked $ticketCount ticket(s) for $groupSize member(s). Queue $queueNumber and memory code $memoryCode are waiting for entry.',
+        memberName: referenceMember,
+        createdAt: registration!.createdAt,
+      );
+      final officeNotification = TempleNotification(
+        title: 'Temple office alert',
+        message:
+            '$name completed registration with queue $queueNumber and memory code $memoryCode.',
+        memberName: 'Temple Office',
+        createdAt: registration!.createdAt,
+      );
+
+      notifications.insert(0, officeNotification);
+      notifications.insert(0, userNotification);
+      nextQueueNumber++;
+
+      _saveRegistration(registration!);
+      _saveNotification(userNotification);
+      _saveNotification(officeNotification);
+      _saveQueueState();
+    }
+
+    _sendRegistrationSmsNotifications(
+      name: name,
       queueNumber: queueNumber,
       memoryCode: memoryCode,
-      name: name,
-      phone: phone,
       referenceMember: referenceMember,
       ticketCount: ticketCount,
       groupSize: groupSize,
-      entryIds: entryIds,
-      createdAt: DateTime.now(),
     );
 
-    registrations.insert(0, registration);
-    final userNotification = TempleNotification(
-      title: 'New visitor registered',
-      message:
-          '$name booked $ticketCount ticket(s) for $groupSize member(s). Queue $queueNumber and memory code $memoryCode are waiting for entry.',
-      memberName: referenceMember,
-      createdAt: registration.createdAt,
-    );
-    final officeNotification = TempleNotification(
-      title: 'Temple office alert',
-      message:
-          '$name completed registration with queue $queueNumber and memory code $memoryCode.',
-      memberName: 'Temple Office',
-      createdAt: registration.createdAt,
-    );
+    return registration!;
+  }
 
-    notifications.insert(0, officeNotification);
-    notifications.insert(0, userNotification);
-    nextQueueNumber++;
-    await _saveRegistration(registration);
-    await _saveNotification(userNotification);
-    await _saveNotification(officeNotification);
-    await _saveQueueState();
-    return registration;
+  Future<void> _sendRegistrationSmsNotifications({
+    required String name,
+    required String queueNumber,
+    required String memoryCode,
+    required String referenceMember,
+    required int ticketCount,
+    required int groupSize,
+  }) async {
+    try {
+      final member = members.firstWhereOrNull((m) => m.name == referenceMember);
+      if (member != null && member.smsPhone.isNotEmpty) {
+        final message = 'Hello ${member.name}, a new visitor has registered under your reference:\n'
+            'Name: $name\n'
+            'Queue Number: $queueNumber\n'
+            'Memory Code: $memoryCode\n'
+            'Tickets: $ticketCount ($groupSize members)';
+        final result = await _smsService.sendSms(
+          recipients: [member.smsPhone],
+          message: message,
+        );
+        debugPrint('SMS notification to ${member.name} (${member.smsPhone}) sent: ${result.sent}, message: ${result.message}');
+      } else {
+        debugPrint('Reference member $referenceMember not found or has no phone number configured.');
+      }
+    } catch (e) {
+      debugPrint('Error sending SMS to reference member: $e');
+    }
+
+    try {
+      if (templeOfficeSmsPhone.isNotEmpty) {
+        final message = 'Office Alert: New registration by $name.\n'
+            'Queue: $queueNumber\n'
+            'Memory Code: $memoryCode\n'
+            'Reference Person: $referenceMember';
+        final result = await _smsService.sendSms(
+          recipients: [templeOfficeSmsPhone],
+          message: message,
+        );
+        debugPrint('SMS notification to Temple Office ($templeOfficeSmsPhone) sent: ${result.sent}, message: ${result.message}');
+      }
+    } catch (e) {
+      debugPrint('Error sending SMS to temple office: $e');
+    }
   }
 
   TempleMember? authenticateMember(String username, String password) {
@@ -389,9 +644,13 @@ class TempleQueueStore {
       return;
     }
 
-    await _registrationsCollection.doc(record.queueNumber).update(
-      <String, dynamic>{'status': status},
-    );
+    try {
+      await _registrationsCollection.doc(record.queueNumber).update(
+        <String, dynamic>{'status': status},
+      ).timeout(const Duration(seconds: 5));
+    } catch (error) {
+      debugPrint('Error updating registration status: $error');
+    }
   }
 
   Future<void> _loadFromFirebase() async {
@@ -399,32 +658,36 @@ class TempleQueueStore {
       return;
     }
 
-    final stateSnapshot = await _stateDocument.get();
-    if (stateSnapshot.exists) {
-      final data = stateSnapshot.data();
-      nextQueueNumber = (data?['nextQueueNumber'] as int?) ?? 1;
+    try {
+      final stateSnapshot = await _stateDocument.get().timeout(const Duration(seconds: 4));
+      if (stateSnapshot.exists) {
+        final data = stateSnapshot.data();
+        nextQueueNumber = (data?['nextQueueNumber'] as int?) ?? 1;
+      }
+
+      final registrationsSnapshot = await _registrationsCollection.get().timeout(const Duration(seconds: 4));
+      final loadedRegistrations =
+          registrationsSnapshot.docs
+              .map((doc) => _registrationFromMap(doc.data()))
+              .toList()
+            ..sort((left, right) => right.createdAt.compareTo(left.createdAt));
+
+      final notificationsSnapshot = await _notificationsCollection.get().timeout(const Duration(seconds: 4));
+      final loadedNotifications =
+          notificationsSnapshot.docs
+              .map((doc) => _notificationFromMap(doc.data()))
+              .toList()
+            ..sort((left, right) => right.createdAt.compareTo(left.createdAt));
+
+      registrations
+        ..clear()
+        ..addAll(loadedRegistrations);
+      notifications
+        ..clear()
+        ..addAll(loadedNotifications);
+    } catch (e) {
+      debugPrint('Error loading from Firebase (timeout or failure): $e');
     }
-
-    final registrationsSnapshot = await _registrationsCollection.get();
-    final loadedRegistrations =
-        registrationsSnapshot.docs
-            .map((doc) => _registrationFromMap(doc.data()))
-            .toList()
-          ..sort((left, right) => right.createdAt.compareTo(left.createdAt));
-
-    final notificationsSnapshot = await _notificationsCollection.get();
-    final loadedNotifications =
-        notificationsSnapshot.docs
-            .map((doc) => _notificationFromMap(doc.data()))
-            .toList()
-          ..sort((left, right) => right.createdAt.compareTo(left.createdAt));
-
-    registrations
-      ..clear()
-      ..addAll(loadedRegistrations);
-    notifications
-      ..clear()
-      ..addAll(loadedNotifications);
   }
 
   Future<void> _saveRegistration(RegistrationRecord registration) async {
@@ -432,9 +695,14 @@ class TempleQueueStore {
       return;
     }
 
-    await _registrationsCollection
-        .doc(registration.queueNumber)
-        .set(_registrationToMap(registration));
+    try {
+      await _registrationsCollection
+          .doc(registration.queueNumber)
+          .set(_registrationToMap(registration))
+          .timeout(const Duration(seconds: 5));
+    } catch (e) {
+      debugPrint('Error saving registration: $e');
+    }
   }
 
   Future<void> _seedTempleMembers() async {
@@ -442,19 +710,23 @@ class TempleQueueStore {
       return;
     }
 
-    final batch = FirebaseFirestore.instance.batch();
-    final createdAt = DateTime.now().toIso8601String();
-    for (final member in members) {
-      batch.set(_membersCollection.doc(member.username), <String, dynamic>{
-        'name': member.name,
-        'username': member.username,
-        'password': member.password,
-        'status': 'Active',
-        'role': 'Temple member',
-        'createdAt': createdAt,
-      }, SetOptions(merge: true));
+    try {
+      final batch = FirebaseFirestore.instance.batch();
+      final createdAt = Timestamp.fromDate(DateTime.now());
+      for (final member in members) {
+        batch.set(_membersCollection.doc(member.username), <String, dynamic>{
+          'name': member.name,
+          'username': member.username,
+          'password': member.password,
+          'status': 'Active',
+          'role': 'Temple member',
+          'createdAt': createdAt,
+        }, SetOptions(merge: true));
+      }
+      await batch.commit().timeout(const Duration(seconds: 4));
+    } catch (e) {
+      debugPrint('Error seeding temple members (timeout or failure): $e');
     }
-    await batch.commit();
   }
 
   Future<void> _saveNotification(TempleNotification notification) async {
@@ -462,7 +734,13 @@ class TempleQueueStore {
       return;
     }
 
-    await _notificationsCollection.add(_notificationToMap(notification));
+    try {
+      await _notificationsCollection
+          .add(_notificationToMap(notification))
+          .timeout(const Duration(seconds: 5));
+    } catch (e) {
+      debugPrint('Error saving notification: $e');
+    }
   }
 
   Future<void> _saveQueueState() async {
@@ -470,10 +748,14 @@ class TempleQueueStore {
       return;
     }
 
-    await _stateDocument.set(<String, dynamic>{
-      'nextQueueNumber': nextQueueNumber,
-      'updatedAt': DateTime.now().toIso8601String(),
-    }, SetOptions(merge: true));
+    try {
+      await _stateDocument.set(<String, dynamic>{
+        'nextQueueNumber': nextQueueNumber,
+        'updatedAt': Timestamp.fromDate(DateTime.now()),
+      }, SetOptions(merge: true)).timeout(const Duration(seconds: 5));
+    } catch (e) {
+      debugPrint('Error saving queue state: $e');
+    }
   }
 
   Future<void> _runFirebaseTask(Future<void> Function() task) async {
@@ -506,6 +788,19 @@ class TempleQueueStore {
     return code;
   }
 
+  DateTime _parseDateTime(dynamic value) {
+    if (value == null) {
+      return DateTime.now();
+    }
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+    if (value is String) {
+      return DateTime.tryParse(value) ?? DateTime.now();
+    }
+    return DateTime.now();
+  }
+
   Map<String, dynamic> _registrationToMap(RegistrationRecord record) {
     return <String, dynamic>{
       'queueNumber': record.queueNumber,
@@ -516,7 +811,7 @@ class TempleQueueStore {
       'ticketCount': record.ticketCount,
       'groupSize': record.groupSize,
       'entryIds': record.entryIds,
-      'createdAt': record.createdAt.toIso8601String(),
+      'createdAt': Timestamp.fromDate(record.createdAt),
       'status': record.status,
       'type': 'Visitor',
     };
@@ -527,34 +822,37 @@ class TempleQueueStore {
       'title': notification.title,
       'message': notification.message,
       'memberName': notification.memberName,
-      'createdAt': notification.createdAt.toIso8601String(),
+      'createdAt': Timestamp.fromDate(notification.createdAt),
     };
   }
 
   RegistrationRecord _registrationFromMap(Map<String, dynamic> data) {
     return RegistrationRecord(
-      queueNumber: data['queueNumber'] as String,
+      queueNumber: (data['queueNumber'] as String?) ?? '',
       memoryCode: (data['memoryCode'] as String?) ?? _generateMemoryCode(),
-      name: data['name'] as String,
-      phone: data['phone'] as String,
-      referenceMember: data['referenceMember'] as String,
-      ticketCount: (data['ticketCount'] as num).toInt(),
-      groupSize: (data['groupSize'] as num).toInt(),
-      entryIds: (data['entryIds'] as List<dynamic>)
-          .map((value) => value.toString())
-          .toList(),
-      createdAt: DateTime.parse(data['createdAt'] as String),
+      name: (data['name'] as String?) ?? '',
+      phone: (data['phone'] as String?) ?? '',
+      referenceMember: (data['referenceMember'] as String?) ?? '',
+      ticketCount: (data['ticketCount'] as num?)?.toInt() ?? 0,
+      groupSize: (data['groupSize'] as num?)?.toInt() ?? 0,
+      entryIds: data['entryIds'] is List
+          ? (data['entryIds'] as List<dynamic>)
+              .map((value) => value.toString())
+              .toList()
+          : [],
+      createdAt: _parseDateTime(data['createdAt']),
     )..status = (data['status'] as String?) ?? 'Waiting approval';
   }
 
   TempleNotification _notificationFromMap(Map<String, dynamic> data) {
     return TempleNotification(
-      title: data['title'] as String,
-      message: data['message'] as String,
-      memberName: data['memberName'] as String,
-      createdAt: DateTime.parse(data['createdAt'] as String),
+      title: (data['title'] as String?) ?? '',
+      message: (data['message'] as String?) ?? '',
+      memberName: (data['memberName'] as String?) ?? '',
+      createdAt: _parseDateTime(data['createdAt']),
     );
   }
+
 }
 
 class TempleLandingPage extends StatelessWidget {
@@ -1005,9 +1303,60 @@ class _TempleMemberPageState extends State<TempleMemberPage> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   TempleMember? _loggedInMember;
+  StreamSubscription? _registrationsSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPersistedLogin();
+    _startRegistrationsListener();
+  }
+
+  Future<void> _loadPersistedLogin() async {
+    final member = await widget.store.getPersistedLogin();
+    if (member != null) {
+      if (mounted) {
+        setState(() {
+          _loggedInMember = member;
+        });
+      }
+      widget.store.startNotificationListener(member, (notification) {
+        if (mounted) {
+          setState(() {});
+        }
+      });
+      PlatformNotificationHelper.requestPermission().then((granted) {
+        debugPrint('App launch notification permission status: $granted');
+      });
+    }
+  }
+
+  void _startRegistrationsListener() {
+    if (!widget.store.isFirebaseEnabled) return;
+    try {
+      _registrationsSubscription = widget.store.registrationsCollectionStream.listen((snapshot) {
+        final loadedRegistrations = snapshot.docs
+            .map((doc) => widget.store.registrationFromMapWrapper(doc.data()))
+            .toList()
+          ..sort((left, right) => right.createdAt.compareTo(left.createdAt));
+
+        widget.store.registrations
+          ..clear()
+          ..addAll(loadedRegistrations);
+
+        if (mounted) {
+          setState(() {});
+        }
+      });
+    } catch (e) {
+      debugPrint('Error listening to registrations: $e');
+    }
+  }
 
   @override
   void dispose() {
+    _registrationsSubscription?.cancel();
+    widget.store.stopNotificationListener();
     _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -1183,11 +1532,15 @@ class _TempleMemberPageState extends State<TempleMemberPage> {
         ),
         const SizedBox(height: 16),
         OutlinedButton.icon(
-          onPressed: () => setState(() {
-            _loggedInMember = null;
-            _usernameController.clear();
-            _passwordController.clear();
-          }),
+          onPressed: () {
+            widget.store.clearPersistedLogin();
+            widget.store.stopNotificationListener();
+            setState(() {
+              _loggedInMember = null;
+              _usernameController.clear();
+              _passwordController.clear();
+            });
+          },
           icon: const Icon(Icons.logout),
           label: const Text('Sign out'),
         ),
@@ -1220,8 +1573,20 @@ class _TempleMemberPageState extends State<TempleMemberPage> {
       return;
     }
 
+    widget.store.persistLogin(member);
+
     setState(() {
       _loggedInMember = member;
+    });
+
+    widget.store.startNotificationListener(member, (notification) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+
+    PlatformNotificationHelper.requestPermission().then((granted) {
+      debugPrint('Notification permission status: $granted');
     });
   }
 }
