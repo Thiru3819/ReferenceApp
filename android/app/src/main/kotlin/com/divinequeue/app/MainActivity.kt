@@ -1,4 +1,4 @@
-package com.example.flutter_application
+package com.divinequeue.app
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -1,43 +1,41 @@
 ```
-# Dependencies
-.dart_tool/
-.packages
-pubspec.lock
-
-# Build
+# Android build outputs
 build/
-**/generated_*
+.gradle/
+*.apk
+*.aar
+*.so
 
-# Android
-android/.gradle/
-android/build/
-android/app/build/
+# Local configuration file (sdk path, signing keys, etc.)
+local.properties
 
-# iOS
-ios/Flutter/App.framework
-ios/Flutter/flutter_assets
-ios/Pods/
-ios/build/
+# Android Studio generated files
+*.iml
+*.iws
+.idea/
 
-# Testing
-coverage/
+# Gradle
+.gradle/
+!gradle/wrapper/gradle-wrapper.jar
 
-# Temporary files
-*.tmp
-*.temp
+# Log Files
+*.log
+
+# OS generated files
 .DS_Store
 Thumbs.db
 
-# Logs
-*.log
-
-# Environment
+# Environment variables
 .env
 .env.local
 *.env.*
 
-# IDE
-.vscode/
-.idea/
-*.swp
+# Coverage reports
+coverage/
+*.lcov
+*.profdata
+
+# Temporary files
+*.tmp
+*.temp
 ```
