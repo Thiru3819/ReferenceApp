@@ -38,6 +38,13 @@ dependencies:
   cloud_firestore: ^6.6.0
   firebase_auth: ^6.5.3
   http: ^1.6.0
+  
+  # State Management
+  provider: ^6.1.2
+  
+  # Permissions & Notifications
+  permission_handler: ^11.4.0
+  flutter_local_notifications: ^18.0.1
 
 dev_dependencies:
   flutter_test:
