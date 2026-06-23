@@ -1,15 +1,30 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import 'firebase_options.dart';
+import 'services/auth_service.dart';
+import 'services/notification_service.dart';
+import 'services/permission_service.dart';
+import 'screens/home_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/signup_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  
+  // Initialize notification service
+  await NotificationService.initialize();
+  
+  // Request necessary permissions
+  await PermissionService.requestPermissions();
+  
   runApp(const DivineQueueApp());
 }
 
@@ -18,11 +33,21 @@ class DivineQueueApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'DivineQueue',
-      theme: _buildDarkEtherealTheme(),
-      home: const AuthWrapper(),
+    return MultiProvider(
+      providers: [
+        Provider<AuthService>(create: (_) => AuthService()),
+        Provider<NotificationService>(create: (_) => NotificationService()),
+        StreamProvider<User?>(
+          create: (context) => context.read<AuthService>().authStateChanges,
+          initialData: null,
+        ),
+      ],
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'DivineQueue',
+        theme: _buildDarkEtherealTheme(),
+        home: const AuthWrapper(),
+      ),
     );
   }
 
@@ -69,5 +94,21 @@ class DivineQueueApp extends StatelessWidget {
         labelStyle: const TextStyle(color: Color(0xFFA78BFA)),
       ),
     );
+  }
+}
+
+/// Authentication wrapper that shows login or home screen based on auth state
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final user = context.watch<User?>();
+    
+    if (user == null) {
+      return const LoginScreen();
+    }
+    
+    return const HomeScreen();
   }
 }

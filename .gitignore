@@ -1,44 +1,43 @@
+```
 # Dependencies
-.pub/
 .dart_tool/
+.packages
+pubspec.lock
 
-# Build artifacts
+# Build
 build/
-**/BUILD/**
-**/generated_*.dart
+**/generated_*
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+
+# iOS
+ios/Flutter/App.framework
+ios/Flutter/flutter_assets
+ios/Pods/
+ios/build/
+
+# Testing
+coverage/
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
 
 # Environment
 .env
 .env.local
-.env.*
+*.env.*
 
-# Logs
-logs/
-*.log
-
-# OS generated files
-.DS_Store
-Thumbs.db
-
-# Coverage
-coverage/
-*.coverage
-
-# IDE files
+# IDE
 .vscode/
 .idea/
 *.swp
-*.swo
-
-# Distribution
-dist/
-bin/cache/lockfile
-.dart_tool/package_config_subset*
-.packages
-
-# Testing
-test/.dart_tool/
-test/**/generated_*dart
-
-# Original rules preserved
-*.log
+```
